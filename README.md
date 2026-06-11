@@ -17,6 +17,14 @@ SwiftUI app that pulls bank transaction alerts from Gmail, shows a spending dash
 - **App lock** — optional Face ID / Touch ID lock (with passcode fallback) that re-locks on backgrounding
 - Ships with sample data so the app works immediately, before Gmail is connected
 
+## Screenshots
+
+Running on the bundled sample data — Dashboard, Transactions, Insights, Repeats, Settings:
+
+<p align="center">
+  <img src="screenshots/carousel.gif" width="320" alt="SpendWise screens cycling through Dashboard, Transactions, Insights, Repeats, and Settings">
+</p>
+
 ## Requirements
 
 - Mac with **Xcode 16+**
