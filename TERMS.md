@@ -48,4 +48,4 @@ These terms are governed by the laws of India, without regard to conflict-of-law
 
 ## Contact
 
-Questions about these terms? Contact the developer at **mr.sajal@gmail.com**.
+Questions about these terms? Contact the developer at **your-email@example.com**.
