@@ -11,7 +11,10 @@ SwiftUI app that pulls bank transaction alerts from Gmail, shows a spending dash
 - **Insights** — category spend spikes, food-delivery overuse, subscription detection, small-purchase leaks
 - **Investment suggestions** (India) — SIP/index funds, FD/liquid funds, PPF, ELSS — educational only
 - **Gmail sync** — parses debit alerts from HDFC, ICICI, SBI, Axis, Kotak, IDFC First (read-only scope)
+- **Smart categorization** — an on-device, self-improving classifier (exact-merchant memory + `NLContextualEmbedding` kNN, warm-started from keyword rules) learns from your corrections; no data leaves the device
+- **Custom rules** — in-app editor (Settings → Rules) to add bank senders and keyword→category mappings that take precedence over the built-in ones
 - **Family spending** — connect multiple Gmail accounts (one per family member); every transaction is tagged with its owner. Filter the dashboard by member, see a "By member" breakdown, rename accounts to "Mom"/"Dad" in Settings
+- **App lock** — optional Face ID / Touch ID lock (with passcode fallback) that re-locks on backgrounding
 - Ships with sample data so the app works immediately, before Gmail is connected
 
 ## Requirements
@@ -50,22 +53,27 @@ Notes:
 
 ## Customizing
 
-- **Add your bank**: extend the sender list in `GmailService.fetchTransactions` and, if its email wording differs, the regexes in `TransactionParser.swift`.
-- **Category rules**: edit `categoryRules` in `TransactionParser.swift`.
+- **No code needed**: add bank senders and keyword→category rules in-app via **Settings → Rules**. Custom rules persist on-device and override the built-ins.
+- **Add your bank in code**: extend `bankSenders` in `TransactionParser.swift` and, if its email wording differs, the regexes there.
+- **Built-in category rules**: edit `categoryRules` in `TransactionParser.swift` — these also seed the on-device classifier in `CategoryClassifier.swift`.
 - **Insight thresholds**: tune the rules in `InsightsEngine.swift`.
 
 ## Project layout
 
 ```
 SpendWise/
-├── SpendWiseApp.swift          App entry, tab bar
-├── Models/Transaction.swift    Transaction + category model
-├── Stores/TransactionStore.swift  State, persistence, analytics, sample data
+├── SpendWiseApp.swift              App entry, tab bar
+├── Models/Transaction.swift        Transaction + category model
+├── Stores/
+│   ├── TransactionStore.swift      State, persistence, analytics, sample data
+│   └── RulesStore.swift            User-editable sender + category rules
 ├── Services/
-│   ├── GmailService.swift      OAuth (PKCE) + Gmail API fetch
-│   ├── TransactionParser.swift Regex parsing of Indian bank alert emails
-│   └── InsightsEngine.swift    Savings + investment suggestion rules
-└── Views/                      Dashboard, Transactions, Insights, Settings
+│   ├── GmailService.swift          OAuth (PKCE) + Gmail API fetch
+│   ├── TransactionParser.swift     Regex parsing of Indian bank alert emails
+│   ├── CategoryClassifier.swift    On-device, self-improving spend classifier
+│   ├── InsightsEngine.swift        Savings + investment suggestion rules
+│   └── AppLock.swift               Optional Face ID / Touch ID app lock
+└── Views/                          Dashboard, Transactions, Insights, Rules, Settings
 ```
 
 ## Disclaimer
