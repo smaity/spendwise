@@ -13,6 +13,8 @@ struct SpendWiseApp: App {
     /// Must match BGTaskSchedulerPermittedIdentifiers in Info.plist.
     static let refreshTaskID = "com.eduquizacademy.spendwise.refresh"
 
+    @State private var showSplash = true
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -28,12 +30,23 @@ struct SpendWiseApp: App {
                     SettingsView()
                         .tabItem { Label("Settings", systemImage: "gearshape.fill") }
                 }
+                .tint(Brand.accent)
                 .environmentObject(store)
                 .environmentObject(appLock)
 
                 if appLock.isLocked {
                     LockView().environmentObject(appLock).transition(.opacity)
                 }
+
+                if showSplash {
+                    SplashView()
+                        .transition(.opacity)
+                        .zIndex(2)
+                }
+            }
+            .task {
+                try? await Task.sleep(for: .seconds(1.4))
+                withAnimation(.easeOut(duration: 0.45)) { showSplash = false }
             }
         }
         // iOS opportunistically wakes the app to fetch new bank-alert emails.

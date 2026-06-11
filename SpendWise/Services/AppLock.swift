@@ -88,9 +88,23 @@ struct LockView: View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
             VStack(spacing: 18) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 52)).foregroundStyle(.teal)
-                Text("SpendWise is locked").font(.headline)
+                BrandLogo(size: 76)
+                    .shadow(color: Brand.accent.opacity(0.3), radius: 12, y: 6)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "lock.fill")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(5)
+                            .background(Brand.accent, in: Circle())
+                            .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 2))
+                            .offset(x: 6, y: 6)
+                    }
+                VStack(spacing: 4) {
+                    Text("\(Brand.name) is locked").font(.headline)
+                    Text(Brand.tagline)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
                 Button {
                     appLock.authenticate()
                 } label: {

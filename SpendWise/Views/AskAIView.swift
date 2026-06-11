@@ -65,14 +65,14 @@ struct AskAIView: View {
     private var intro: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Apple Intelligence", systemImage: "sparkles")
-                .font(.caption.bold()).foregroundStyle(.purple)
+                .font(.caption.bold()).foregroundStyle(Brand.ai)
             Text("Ask anything about your spending — it's answered on-device from your own data. Nothing leaves your phone.")
                 .font(.subheadline).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        .background(Brand.ai.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var suggestionChips: some View {
@@ -82,8 +82,8 @@ struct AskAIView: View {
                     Button { send(s) } label: {
                         Text(s).font(.caption)
                             .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(.purple.opacity(0.12), in: Capsule())
-                            .foregroundStyle(.purple)
+                            .background(Brand.ai.opacity(0.12), in: Capsule())
+                            .foregroundStyle(Brand.ai)
                     }
                     .buttonStyle(.plain)
                 }
@@ -105,7 +105,7 @@ struct AskAIView: View {
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.title)
-                    .foregroundStyle(canSend ? .purple : .gray)
+                    .foregroundStyle(canSend ? Brand.ai : .gray)
             }
             .disabled(!canSend)
         }
@@ -164,7 +164,7 @@ private struct ChatBubble: View {
 
     private var bubbleColor: AnyShapeStyle {
         message.role == .user
-            ? AnyShapeStyle(Color.purple)
+            ? AnyShapeStyle(Brand.ai)
             : AnyShapeStyle(.quaternary.opacity(0.5))
     }
 }

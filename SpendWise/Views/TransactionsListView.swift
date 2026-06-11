@@ -100,8 +100,8 @@ struct TransactionRow: View {
         HStack(spacing: 12) {
             Image(systemName: tx.category.icon)
                 .frame(width: 36, height: 36)
-                .background(.teal.opacity(0.15), in: Circle())
-                .foregroundStyle(.teal)
+                .background(Brand.accent.opacity(0.15), in: Circle())
+                .foregroundStyle(Brand.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(tx.merchant).font(.subheadline.bold())
                 Text("\(tx.bank) · \(tx.date.formatted(date: .abbreviated, time: .omitted))")
@@ -116,8 +116,8 @@ struct TransactionRow: View {
                     Text(memberLabel)
                         .font(.caption2.bold())
                         .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(.teal.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.teal)
+                        .background(Brand.accent.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Brand.accent)
                 }
             }
         }
@@ -140,8 +140,8 @@ struct TransactionDetailView: View {
                     Image(systemName: current.category.icon)
                         .font(.title)
                         .frame(width: 56, height: 56)
-                        .background((current.isIncome ? Color.green : Color.teal).opacity(0.15), in: Circle())
-                        .foregroundStyle(current.isIncome ? .green : .teal)
+                        .background((current.isIncome ? Color.green : Brand.accent).opacity(0.15), in: Circle())
+                        .foregroundStyle(current.isIncome ? .green : Brand.accent)
                     Text(current.merchant).font(.title3.bold())
                     Text((current.isIncome ? "+" : "") + current.amountFormatted)
                         .font(.system(size: 32, weight: .bold, design: .rounded))
