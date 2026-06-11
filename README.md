@@ -26,7 +26,7 @@ SwiftUI app that pulls bank transaction alerts from Gmail, shows a spending dash
 Running on the bundled sample data — Dashboard, Transactions, Insights, Repeats, Settings:
 
 <p align="center">
-  <img src="screenshots/carousel.gif" width="320" alt="SpendWise screens cycling through Dashboard, Transactions, Insights, Repeats, and Settings">
+  <img src="screenshots/spendwise-demo.gif" width="320" alt="SpendWise screens cycling through Dashboard, Transactions, Insights (with Apple Intelligence), Repeats, and Settings">
 </p>
 
 ## Requirements
