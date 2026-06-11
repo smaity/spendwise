@@ -1,6 +1,9 @@
 # Local secrets / credentials — never commit
 SpendWise/Secrets.swift
 
+# Local deploy settings (team ID / device UUID) — never commit
+deploy.env
+
 # Build artifacts
 build/
 DerivedData/
