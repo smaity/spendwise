@@ -19,7 +19,7 @@ struct SettingsView: View {
                     ForEach(store.gmail.accounts) { account in
                         HStack {
                             Image(systemName: "person.crop.circle.fill")
-                                .foregroundStyle(.teal).font(.title2)
+                                .foregroundStyle(Brand.accent).font(.title2)
                             VStack(alignment: .leading) {
                                 Text(account.label).font(.subheadline.bold())
                                 Text(account.email).font(.caption).foregroundStyle(.secondary)
@@ -142,6 +142,17 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
+                    HStack(spacing: 12) {
+                        BrandLogo(size: 48)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Brand.name).font(.headline)
+                            Text(Brand.tagline)
+                                .font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 4)
                     LabeledContent("Version", value: "1.1")
                     Text("All data is stored locally on your device. Nothing is uploaded to any server.")
                         .font(.caption).foregroundStyle(.secondary)

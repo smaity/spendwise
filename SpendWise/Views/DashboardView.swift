@@ -20,6 +20,7 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    brandTagline
                     if store.memberEmails.count > 1 { memberChips }
                     monthPicker
                     totalCard
@@ -28,10 +29,13 @@ struct DashboardView: View {
                         familyBreakdown
                     }
                     if summaries.isEmpty {
-                        ContentUnavailableView("No transactions",
-                            systemImage: "tray",
-                            description: Text("Connect Gmail in Settings or add transactions manually."))
-                            .padding(.top, 40)
+                        ContentUnavailableView {
+                            Image(systemName: "tray.fill").font(.largeTitle).foregroundStyle(Brand.accent)
+                            Text("Nothing tracked yet").font(.headline).padding(.top, 4)
+                        } description: {
+                            Text("Connect Gmail in Settings, or add a transaction manually — SpendWise builds your spending picture automatically.")
+                        }
+                        .padding(.top, 40)
                     } else {
                         categoryDonut
                         dailyTrend
@@ -55,6 +59,19 @@ struct DashboardView: View {
 
     // MARK: Components
 
+    /// Brand logo + tagline shown under the navigation title — privacy-first positioning.
+    private var brandTagline: some View {
+        HStack(spacing: 10) {
+            BrandLogo(size: 34)
+            Text(Brand.tagline)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     /// Family member filter: All / each connected account.
     private var memberChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -75,7 +92,7 @@ struct DashboardView: View {
             Text(title)
                 .font(.subheadline.weight(isOn ? .bold : .regular))
                 .padding(.horizontal, 14).padding(.vertical, 7)
-                .background(isOn ? AnyShapeStyle(.teal) : AnyShapeStyle(.quaternary.opacity(0.5)),
+                .background(isOn ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(.quaternary.opacity(0.5)),
                             in: Capsule())
                 .foregroundStyle(isOn ? .white : .primary)
         }
@@ -97,7 +114,7 @@ struct DashboardView: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
                     GeometryReader { geo in
-                        Capsule().fill(.teal.gradient)
+                        Capsule().fill(Brand.accent.gradient)
                             .frame(width: max(8, geo.size.width * m.total / max(maxTotal, 1)))
                     }
                     .frame(height: 8)
@@ -221,7 +238,7 @@ struct DashboardView: View {
                     BarMark(x: .value("Month", item.month, unit: .month),
                             y: .value("Spent", item.total))
                         .foregroundStyle(cal.isDate(item.month, equalTo: selectedMonth, toGranularity: .month)
-                                         ? Color.teal : Color.teal.opacity(0.35))
+                                         ? Brand.accent : Brand.accent.opacity(0.35))
                 }
                 if avg > 0 {
                     RuleMark(y: .value("Average", avg))
@@ -250,7 +267,7 @@ struct DashboardView: View {
                     x: .value("Day", item.day, unit: .day),
                     y: .value("Spent", item.total)
                 )
-                .foregroundStyle(.teal.gradient)
+                .foregroundStyle(Brand.accent.gradient)
             }
             .frame(height: 160)
         }
@@ -267,7 +284,7 @@ struct DashboardView: View {
                     HStack {
                         Image(systemName: s.category.icon)
                             .frame(width: 32)
-                            .foregroundStyle(.teal)
+                            .foregroundStyle(Brand.accent)
                         VStack(alignment: .leading) {
                             Text(s.category.rawValue).font(.subheadline.bold())
                             Text("\(s.count) transaction\(s.count == 1 ? "" : "s")")

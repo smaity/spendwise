@@ -1,8 +1,32 @@
-# SpendWise — Spending Analysis for iOS
+<h1 align="center">SpendWise</h1>
 
-SwiftUI app that pulls bank transaction alerts from Gmail, shows a spending dashboard, and suggests ways to cut spending and invest the difference. All data stays on-device.
+<p align="center"><strong>Spending insights that never leave your iPhone.</strong></p>
 
-**Why Gmail and not SMS?** iOS does not let third-party apps read SMS — that's an Apple platform restriction (Android-only feature). Gmail alerts from your banks carry the same transaction data.
+<p align="center">
+  SpendWise turns your banks' alert emails into a clear, on-device picture of where your money
+  goes — with Apple&nbsp;Intelligence insights and answers that stay private to your phone.
+</p>
+
+<p align="center">
+  <img alt="Platform: iOS 17+" src="https://img.shields.io/badge/iOS-17%2B-black?logo=apple">
+  <img alt="Built with SwiftUI" src="https://img.shields.io/badge/SwiftUI-5-blue?logo=swift&logoColor=white">
+  <img alt="Apple Intelligence" src="https://img.shields.io/badge/Apple%20Intelligence-on--device-purple?logo=apple">
+  <img alt="Privacy: 100% on-device" src="https://img.shields.io/badge/privacy-100%25%20on--device-brightgreen">
+  <img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-lightgrey">
+</p>
+
+<p align="center">
+  <img src="screenshots/spendwise-demo.gif" width="300" alt="SpendWise screens cycling through Dashboard, Transactions, Insights (with Apple Intelligence), Repeats, and Settings">
+</p>
+
+---
+
+**Why on-device?** Your spending is some of your most sensitive data. SpendWise reads your bank
+alert emails, analyzes them, categorizes with Apple Intelligence, and answers your questions —
+all on your iPhone. Nothing is uploaded to any server; there's no account to create.
+
+**Why Gmail and not SMS?** iOS does not let third-party apps read SMS — that's an Apple platform
+restriction (Android-only feature). Gmail alerts from your banks carry the same transaction data.
 
 ## Features
 
@@ -20,14 +44,6 @@ SwiftUI app that pulls bank transaction alerts from Gmail, shows a spending dash
 - **Family spending** — connect multiple Gmail accounts (one per family member); every transaction is tagged with its owner. Filter the dashboard by member, see a "By member" breakdown, rename accounts to "Mom"/"Dad" in Settings
 - **App lock** — optional Face ID / Touch ID lock (with passcode fallback) that re-locks on backgrounding
 - Ships with sample data so the app works immediately, before Gmail is connected
-
-## Screenshots
-
-Running on the bundled sample data — Dashboard, Transactions, Insights, Repeats, Settings:
-
-<p align="center">
-  <img src="screenshots/spendwise-demo.gif" width="320" alt="SpendWise screens cycling through Dashboard, Transactions, Insights (with Apple Intelligence), Repeats, and Settings">
-</p>
 
 ## Requirements
 
@@ -75,6 +91,7 @@ Notes:
 ```
 SpendWise/
 ├── SpendWiseApp.swift              App entry, tab bar
+├── Brand.swift                     Product identity (name, tagline, colors)
 ├── Models/Transaction.swift        Transaction + category model
 ├── Stores/
 │   ├── TransactionStore.swift      State, persistence, analytics, sample data

@@ -42,10 +42,13 @@ struct InsightsView: View {
                         section("Put savings to work", items: investments)
                     }
                     if insights.isEmpty {
-                        ContentUnavailableView("Not enough data",
-                            systemImage: "lightbulb",
-                            description: Text("Insights appear after a month or two of transactions."))
-                            .padding(.top, 60)
+                        ContentUnavailableView {
+                            Image(systemName: "lightbulb.fill").font(.largeTitle).foregroundStyle(Brand.accent)
+                            Text("Insights are warming up").font(.headline).padding(.top, 4)
+                        } description: {
+                            Text("Once you have a month or two of transactions, SpendWise surfaces savings, trends, and spend spikes here.")
+                        }
+                        .padding(.top, 60)
                     }
 
                     Text("Educational suggestions only — not financial advice. Consider a SEBI-registered advisor for personalised guidance.")
@@ -76,7 +79,7 @@ struct InsightsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+            .background(Brand.ai.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
         case .done:
             VStack(spacing: 12) {
                 if let aiInsight { AIInsightCard(insight: aiInsight) }
@@ -93,8 +96,8 @@ struct InsightsView: View {
                 .font(.subheadline.bold())
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(.purple.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-                .foregroundStyle(.purple)
+                .background(Brand.ai.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                .foregroundStyle(Brand.ai)
         }
         .buttonStyle(.plain)
     }
@@ -173,7 +176,7 @@ struct AIInsightCard: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Apple Intelligence", systemImage: "sparkles")
                 .font(.caption.bold())
-                .foregroundStyle(.purple)
+                .foregroundStyle(Brand.ai)
 
             Text(insight.summary)
                 .font(.subheadline)
@@ -196,7 +199,7 @@ struct AIInsightCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(
-            LinearGradient(colors: [.purple.opacity(0.12), .blue.opacity(0.08)],
+            LinearGradient(colors: [Brand.ai.opacity(0.12), .blue.opacity(0.08)],
                            startPoint: .topLeading, endPoint: .bottomTrailing),
             in: RoundedRectangle(cornerRadius: 16)
         )
@@ -209,7 +212,7 @@ struct InsightCard: View {
     private var tint: Color {
         switch insight.kind {
         case .alert: return .orange
-        case .saving: return .teal
+        case .saving: return Brand.accent
         case .investment: return .green
         }
     }
@@ -262,16 +265,19 @@ struct RepeatedSpendsView: View {
                             NavigationLink {
                                 TagDetailView(tag: tag)
                             } label: {
-                                Label(tag, systemImage: "tag.fill").foregroundStyle(.purple)
+                                Label(tag, systemImage: "tag.fill").foregroundStyle(Brand.ai)
                             }
                         }
                     }
                 }
 
                 if spends.isEmpty {
-                    ContentUnavailableView("No repeated spends yet",
-                        systemImage: "repeat",
-                        description: Text("Merchants you pay more than once will rank here. Import more history from Settings → Sync."))
+                    ContentUnavailableView {
+                        Image(systemName: "repeat").font(.largeTitle).foregroundStyle(Brand.accent)
+                        Text("No repeated spends yet").font(.headline).padding(.top, 4)
+                    } description: {
+                        Text("Merchants you pay more than once will rank here. Import more history from Settings → Sync.")
+                    }
                 } else {
                     Section {
                         ForEach(Array(spends.enumerated()), id: \.element.id) { index, spend in
@@ -318,8 +324,8 @@ struct RepeatedSpendRow: View {
 
             Image(systemName: spend.category.icon)
                 .frame(width: 38, height: 38)
-                .background(.teal.opacity(0.15), in: Circle())
-                .foregroundStyle(.teal)
+                .background(Brand.accent.opacity(0.15), in: Circle())
+                .foregroundStyle(Brand.accent)
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
@@ -328,8 +334,8 @@ struct RepeatedSpendRow: View {
                         Text("SUBSCRIPTION")
                             .font(.system(size: 9, weight: .bold))
                             .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(.purple.opacity(0.15), in: Capsule())
-                            .foregroundStyle(.purple)
+                            .background(Brand.ai.opacity(0.15), in: Capsule())
+                            .foregroundStyle(Brand.ai)
                     }
                 }
                 Text("\(spend.category.rawValue) · \(spend.banks.joined(separator: ", "))")
@@ -345,8 +351,8 @@ struct RepeatedSpendRow: View {
                 Text("\(spend.count)×")
                     .font(.caption2.bold())
                     .padding(.horizontal, 7).padding(.vertical, 2)
-                    .background(.teal.opacity(0.15), in: Capsule())
-                    .foregroundStyle(.teal)
+                    .background(Brand.accent.opacity(0.15), in: Capsule())
+                    .foregroundStyle(Brand.accent)
             }
         }
         .padding(.vertical, 2)
@@ -396,7 +402,7 @@ struct PartyDetailView: View {
                     Chart(monthly, id: \.month) { item in
                         BarMark(x: .value("Month", item.month, unit: .month),
                                 y: .value("Spent", item.total))
-                            .foregroundStyle(.teal.gradient)
+                            .foregroundStyle(Brand.accent.gradient)
                     }
                     .frame(height: 180)
                 }
@@ -405,7 +411,7 @@ struct PartyDetailView: View {
             Section("Tags") {
                 ForEach(tags, id: \.self) { tag in
                     HStack {
-                        Label(tag, systemImage: "tag.fill").foregroundStyle(.purple)
+                        Label(tag, systemImage: "tag.fill").foregroundStyle(Brand.ai)
                         Spacer()
                         Button(role: .destructive) {
                             store.removeTag(tag, fromMerchant: merchant)
@@ -432,8 +438,8 @@ struct PartyDetailView: View {
                                 Button { store.addTag(s, toMerchant: merchant) } label: {
                                     Text("+ \(s)").font(.caption)
                                         .padding(.horizontal, 10).padding(.vertical, 5)
-                                        .background(.purple.opacity(0.12), in: Capsule())
-                                        .foregroundStyle(.purple)
+                                        .background(Brand.ai.opacity(0.12), in: Capsule())
+                                        .foregroundStyle(Brand.ai)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -491,7 +497,7 @@ struct TagDetailView: View {
                     Chart(monthly, id: \.month) { item in
                         BarMark(x: .value("Month", item.month, unit: .month),
                                 y: .value("Spent", item.total))
-                            .foregroundStyle(.purple.gradient)
+                            .foregroundStyle(Brand.ai.gradient)
                     }
                     .frame(height: 180)
                 }
