@@ -65,4 +65,4 @@ We may update this policy as the app evolves. Material changes will be reflected
 
 ## Contact
 
-Questions about this policy? Contact the developer at **mr.sajal@gmail.com**.
+Questions about this policy? Contact the developer at **your-email@example.com**.

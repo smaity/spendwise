@@ -1,0 +1,15 @@
+# Local secrets / credentials — never commit
+SpendWise/Secrets.swift
+
+# Build artifacts
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+
+# Xcode user state
+*.xcuserstate
+xcuserdata/
+
+# macOS
+.DS_Store
