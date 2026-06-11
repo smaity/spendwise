@@ -11,7 +11,11 @@ SwiftUI app that pulls bank transaction alerts from Gmail, shows a spending dash
 - **Insights** — category spend spikes, food-delivery overuse, subscription detection, small-purchase leaks
 - **Investment suggestions** (India) — SIP/index funds, FD/liquid funds, PPF, ELSS — educational only
 - **Gmail sync** — parses debit alerts from HDFC, ICICI, SBI, Axis, Kotak, IDFC First (read-only scope)
-- **Smart categorization** — an on-device, self-improving classifier (exact-merchant memory + `NLContextualEmbedding` kNN, warm-started from keyword rules) learns from your corrections; no data leaves the device
+- **Apple Intelligence** (iOS 26+, on-device) — three Foundation Models features that all run on-device:
+  - *Categorization* — the on-device LLM is the primary categorizer for imported transactions, falling back to the embedding classifier below when Apple Intelligence is off or unavailable.
+  - *Insights summary* — the Insights tab opens with a natural-language overview of your month plus tailored money-saving tips.
+  - *Ask your data* — tap "Ask about your spending" to chat with your own finances ("How much on food this month?", "Which subscriptions am I paying for?"); answers are grounded in a local digest and never leave the device.
+- **Smart categorization** — an on-device, self-improving classifier (exact-merchant memory + `NLContextualEmbedding` kNN, warm-started from keyword rules) learns from your corrections; used as the fallback when Apple Intelligence isn't available. No data leaves the device
 - **Custom rules** — in-app editor (Settings → Rules) to add bank senders and keyword→category mappings that take precedence over the built-in ones
 - **Family spending** — connect multiple Gmail accounts (one per family member); every transaction is tagged with its owner. Filter the dashboard by member, see a "By member" breakdown, rename accounts to "Mom"/"Dad" in Settings
 - **App lock** — optional Face ID / Touch ID lock (with passcode fallback) that re-locks on backgrounding
@@ -78,10 +82,14 @@ SpendWise/
 ├── Services/
 │   ├── GmailService.swift          OAuth (PKCE) + Gmail API fetch
 │   ├── TransactionParser.swift     Regex parsing of Indian bank alert emails
-│   ├── CategoryClassifier.swift    On-device, self-improving spend classifier
+│   ├── CategoryClassifier.swift    On-device embedding classifier (fallback)
+│   ├── AICategoryClassifier.swift  Apple Intelligence categorizer (primary, iOS 26+)
+│   ├── AIInsightsService.swift     Apple Intelligence insights summary (iOS 26+)
+│   ├── AIQueryService.swift        Apple Intelligence spending Q&A (iOS 26+)
 │   ├── InsightsEngine.swift        Savings + investment suggestion rules
 │   └── AppLock.swift               Optional Face ID / Touch ID app lock
-└── Views/                          Dashboard, Transactions, Insights, Rules, Settings
+└── Views/                          Dashboard, Transactions, Insights, Rules,
+                                    Settings, AskAI (spending Q&A sheet)
 ```
 
 ## Disclaimer

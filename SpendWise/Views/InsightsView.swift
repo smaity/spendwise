@@ -15,6 +15,13 @@ struct InsightsView: View {
         savings.compactMap(\.amount).reduce(0, +)
     }
 
+    // Apple Intelligence summary (iOS 26+). Section stays hidden when AI is unavailable.
+    private let ai = AIInsightsService()
+    @State private var aiInsight: SpendingInsight?
+    @State private var aiState: AIState = .idle
+    private enum AIState { case idle, loading, done, hidden }
+    @State private var showAsk = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -25,6 +32,8 @@ struct InsightsView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if potentialMonthlySaving > 0 { headline }
+
+                    aiSection
 
                     if !savings.isEmpty {
                         section("Cut spending", items: savings)
@@ -48,7 +57,88 @@ struct InsightsView: View {
                 .padding()
             }
             .navigationTitle("Insights")
+            .task(id: store.memberFilter) { await loadAIInsight() }
+            .sheet(isPresented: $showAsk) {
+                AskAIView().environmentObject(store)
+            }
         }
+    }
+
+    // MARK: - Apple Intelligence section
+
+    @ViewBuilder private var aiSection: some View {
+        switch aiState {
+        case .loading:
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Analyzing your spending with Apple Intelligence…")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+        case .done:
+            VStack(spacing: 12) {
+                if let aiInsight { AIInsightCard(insight: aiInsight) }
+                askButton
+            }
+        case .idle, .hidden:
+            EmptyView()
+        }
+    }
+
+    private var askButton: some View {
+        Button { showAsk = true } label: {
+            Label("Ask about your spending", systemImage: "sparkles")
+                .font(.subheadline.bold())
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(.purple.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                .foregroundStyle(.purple)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Generates the AI summary once Apple Intelligence is confirmed available and there's
+    /// data to summarize. Re-runs when the member filter changes.
+    @MainActor private func loadAIInsight() async {
+        let expenses = store.visibleExpenses
+        guard ai.isAvailable(), !expenses.isEmpty else { aiState = .hidden; return }
+        aiState = .loading
+        let result = await ai.generate(spendingSummary: Self.spendingSummary(for: expenses))
+        aiInsight = result
+        aiState = result == nil ? .hidden : .done
+    }
+
+    /// A compact, model-friendly digest of spending: this month's total, the prior month,
+    /// per-category totals, and the top merchants.
+    static func spendingSummary(for txs: [Transaction], referenceDate: Date = Date()) -> String {
+        let cal = Calendar.current
+        let thisMonth = txs.filter { cal.isDate($0.date, equalTo: referenceDate, toGranularity: .month) }
+        let total = thisMonth.reduce(0) { $0 + $1.amount }
+
+        var lastTotal = 0.0
+        if let thisStart = cal.date(from: cal.dateComponents([.year, .month], from: referenceDate)),
+           let lastStart = cal.date(byAdding: .month, value: -1, to: thisStart) {
+            lastTotal = txs.filter { cal.isDate($0.date, equalTo: lastStart, toGranularity: .month) }
+                           .reduce(0) { $0 + $1.amount }
+        }
+
+        let byCat = Dictionary(grouping: thisMonth, by: \.category)
+            .mapValues { $0.reduce(0) { $0 + $1.amount } }
+            .sorted { $0.value > $1.value }
+        let byMerchant = Dictionary(grouping: thisMonth, by: \.merchant)
+            .mapValues { $0.reduce(0) { $0 + $1.amount } }
+            .sorted { $0.value > $1.value }
+            .prefix(5)
+
+        let cats = byCat.map { "\($0.key.rawValue) ₹\(Int($0.value))" }.joined(separator: ", ")
+        let merchants = byMerchant.map { "\($0.key) ₹\(Int($0.value))" }.joined(separator: ", ")
+        return """
+        This month total spend: ₹\(Int(total)). Last month: ₹\(Int(lastTotal)).
+        Spend by category: \(cats.isEmpty ? "none" : cats).
+        Top merchants: \(merchants.isEmpty ? "none" : merchants).
+        """
     }
 
     private var headline: some View {
@@ -72,6 +162,44 @@ struct InsightsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Card for the Apple Intelligence-generated summary + tips.
+struct AIInsightCard: View {
+    let insight: SpendingInsight
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Apple Intelligence", systemImage: "sparkles")
+                .font(.caption.bold())
+                .foregroundStyle(.purple)
+
+            Text(insight.summary)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !insight.tips.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(insight.tips, id: \.self) { tip in
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption).foregroundStyle(.green)
+                            Text(tip)
+                                .font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(
+            LinearGradient(colors: [.purple.opacity(0.12), .blue.opacity(0.08)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 16)
+        )
     }
 }
 

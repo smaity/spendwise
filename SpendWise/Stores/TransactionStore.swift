@@ -28,7 +28,11 @@ final class TransactionStore: ObservableObject {
 
     let gmail = GmailService()
     /// On-device, self-improving category classifier (warm-started from keyword seeds).
+    /// Used as the fallback when Apple Intelligence isn't available.
     private let classifier = CategoryClassifier()
+    /// Primary classifier: Apple Intelligence's on-device model (iOS 26+). Falls through
+    /// to `classifier` when unavailable.
+    private let aiClassifier = AICategoryClassifier()
     /// Confidence below which we trust the parser's keyword category instead of the model.
     private static let classifierThreshold = 0.55
     private var cancellables = Set<AnyCancellable>()
@@ -121,7 +125,8 @@ final class TransactionStore: ObservableObject {
         defer { isSyncing = false }
         do {
             let fetched = try await gmail.fetchTransactions(daysBack: daysBack)
-            commitMerge(fetched)
+            let addedIDs = commitMerge(fetched)
+            await refineWithAI(addedIDs)
             lastSync = Date()
         } catch {
             syncError = error.localizedDescription
@@ -168,15 +173,16 @@ final class TransactionStore: ObservableObject {
             }
         }
 
-        let added = commitMerge(fetchedAll)
-        if added == 0, let first = errors.first { syncError = first }
+        let addedIDs = commitMerge(fetchedAll)
+        if addedIDs.isEmpty, let first = errors.first { syncError = first }
+        await refineWithAI(addedIDs)
         lastSync = Date()
     }
 
     /// Merges fetched transactions into the store, persisting only if anything changed.
-    /// Returns the number of genuinely new transactions added.
+    /// Returns the IDs of the genuinely new transactions added.
     @discardableResult
-    private func commitMerge(_ fetched: [Transaction]) -> Int {
+    private func commitMerge(_ fetched: [Transaction]) -> [UUID] {
         let result = merge(fetched)
         if result.changed {
             if result.added > 0 {
@@ -185,13 +191,32 @@ final class TransactionStore: ObservableObject {
             transactions.sort { $0.date > $1.date }
             save()
         }
-        return result.added
+        return result.addedIDs
+    }
+
+    /// Primary categorization: upgrades freshly-imported expenses with Apple Intelligence
+    /// when it's available, overwriting the embedding classifier's guess. A no-op (keeps the
+    /// fallback guess) on iOS < 26 or when Apple Intelligence is off. AI's decisions also
+    /// train the embedding classifier, so the fallback keeps improving.
+    private func refineWithAI(_ ids: [UUID]) async {
+        guard !ids.isEmpty, aiClassifier.isAvailable() else { return }
+        var changed = false
+        for id in ids {
+            guard let i = transactions.firstIndex(where: { $0.id == id }), !transactions[i].isIncome,
+                  let cat = await aiClassifier.classify(merchant: transactions[i].merchant,
+                                                        snippet: transactions[i].rawSnippet ?? "")
+            else { continue }
+            if transactions[i].category != cat { transactions[i].category = cat; changed = true }
+            classifier.train(merchant: transactions[i].merchant,
+                             text: Self.trainingText(transactions[i]), category: cat)
+        }
+        if changed { save() }
     }
 
     /// De-duplicates by stable Gmail message-ID. For rows imported before IDs were tracked,
     /// matches on the legacy heuristic key and backfills the ID in place (one-time migration)
     /// rather than creating a duplicate. Manual/sample rows fall back to the heuristic key.
-    private func merge(_ fetched: [Transaction]) -> (added: Int, changed: Bool) {
+    private func merge(_ fetched: [Transaction]) -> (added: Int, changed: Bool, addedIDs: [UUID]) {
         var knownIDs = Set(transactions.compactMap(\.sourceID))
         var knownHeuristic = Set(transactions.map(Self.heuristicKey))
         // Legacy Gmail rows (no sourceID yet) eligible for ID backfill — never sample/manual.
@@ -202,6 +227,7 @@ final class TransactionStore: ObservableObject {
 
         var added = 0
         var changed = false
+        var addedIDs: [UUID] = []
         for tx in fetched {
             if let sid = tx.sourceID {
                 if knownIDs.contains(sid) { continue }
@@ -211,19 +237,23 @@ final class TransactionStore: ObservableObject {
                     changed = true
                     continue
                 }
-                transactions.append(categorized(tx))
+                let row = categorized(tx)
+                transactions.append(row)
                 knownIDs.insert(sid)
                 knownHeuristic.insert(Self.heuristicKey(tx))
+                addedIDs.append(row.id)
                 added += 1; changed = true
             } else {
                 let key = Self.heuristicKey(tx)
                 if knownHeuristic.contains(key) { continue }
-                transactions.append(categorized(tx))
+                let row = categorized(tx)
+                transactions.append(row)
                 knownHeuristic.insert(key)
+                addedIDs.append(row.id)
                 added += 1; changed = true
             }
         }
-        return (added, changed)
+        return (added, changed, addedIDs)
     }
 
     /// Fallback identity for rows without a stable provider ID (manual entries, pre-migration).
