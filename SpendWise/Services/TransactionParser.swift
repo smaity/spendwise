@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Sajal Maity
+
 import Foundation
 
 /// Parses transaction-alert emails from Indian banks (HDFC, ICICI, SBI, Axis, Kotak, etc.)
