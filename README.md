@@ -71,3 +71,7 @@ SpendWise/
 ## Disclaimer
 
 Investment suggestions are rule-based educational pointers, not financial advice. Consult a SEBI-registered investment advisor for personalised guidance.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Sajal Maity.

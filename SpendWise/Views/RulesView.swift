@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Sajal Maity
+
 import SwiftUI
 
 /// In-app editor for transaction-detection rules: which bank senders to fetch and how

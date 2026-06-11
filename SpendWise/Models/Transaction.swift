@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Sajal Maity
+
 import Foundation
 
 enum SpendCategory: String, Codable, CaseIterable, Identifiable {
