@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/spendwise-demo.gif" width="300" alt="SpendWise screens cycling through Dashboard, Transactions, Insights (with Apple Intelligence), Repeats, and Settings">
+  <img src="screenshots/spendwise-demo.gif" width="300" alt="SpendWise screens cycling through Dashboard, Transactions, Balance Sheet, Insights, Repeats, and Settings">
 </p>
 
 ---
