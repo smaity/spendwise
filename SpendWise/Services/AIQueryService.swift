@@ -10,7 +10,7 @@ import FoundationModels
 /// numbers instead of doing arithmetic over raw rows. One session is kept per conversation
 /// so follow-up questions retain context.
 ///
-/// FoundationModels is weak-linked: every use is guarded by `#available(iOS 26.0, *)`.
+/// FoundationModels is weak-linked: every use is guarded by `#available(iOS 26.0, macOS 26.0, *)`.
 /// The live `LanguageModelSession` (iOS 26-only) is stored type-erased so this class can be
 /// held by the iOS 17+ UI.
 final class AIQueryService {
@@ -19,7 +19,7 @@ final class AIQueryService {
 
     /// Whether the on-device model can run right now. Logs the reason when it can't.
     func isAvailable() -> Bool {
-        guard #available(iOS 26.0, *) else { return false }
+        guard #available(iOS 26.0, macOS 26.0, *) else { return false }
         switch SystemLanguageModel.default.availability {
         case .available:
             return true
@@ -34,14 +34,14 @@ final class AIQueryService {
     /// Starts a fresh conversation grounded in the given transactions. Call when the Ask
     /// sheet opens (and whenever the underlying data/filter changes).
     func startConversation(with transactions: [Transaction]) {
-        guard #available(iOS 26.0, *),
+        guard #available(iOS 26.0, macOS 26.0, *),
               case .available = SystemLanguageModel.default.availability else { sessionBox = nil; return }
         sessionBox = LanguageModelSession(instructions: Self.instructions(digest: Self.digest(for: transactions)))
     }
 
     /// Answers one question. Returns nil if Apple Intelligence is unavailable or errors.
     func ask(_ question: String) async -> String? {
-        guard #available(iOS 26.0, *), let session = sessionBox as? LanguageModelSession else { return nil }
+        guard #available(iOS 26.0, macOS 26.0, *), let session = sessionBox as? LanguageModelSession else { return nil }
         do {
             return try await session.respond(to: question).content
         } catch {

@@ -4,7 +4,11 @@
 import Foundation
 import AuthenticationServices
 import Security
+#if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 /// A connected Gmail account (one per family member).
 struct GmailAccount: Identifiable, Codable, Hashable {
@@ -362,10 +366,14 @@ final class GmailService: NSObject, ObservableObject {
 
 extension GmailService: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        #if os(iOS)
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        #elseif os(macOS)
+        NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first ?? ASPresentationAnchor()
+        #endif
     }
 }
 

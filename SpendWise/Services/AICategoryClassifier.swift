@@ -10,13 +10,13 @@ import FoundationModels
 /// `CategoryClassifier` on older iOS or when Apple Intelligence is turned off.
 ///
 /// The FoundationModels framework is weak-linked: every use is guarded by
-/// `#available(iOS 26.0, *)`, so the app still launches on iOS 17–25.
+/// `#available(iOS 26.0, macOS 26.0, *)`, so the app still launches on iOS 17–25.
 final class AICategoryClassifier {
 
     /// Whether the on-device model can run right now. Logs the reason when it can't.
     func isAvailable() -> Bool {
-        guard #available(iOS 26.0, *) else {
-            NSLog("SPENDWISE_AI: iOS < 26 — Apple Intelligence unavailable")
+        guard #available(iOS 26.0, macOS 26.0, *) else {
+            NSLog("SPENDWISE_AI: OS < 26 — Apple Intelligence unavailable")
             return false
         }
         switch SystemLanguageModel.default.availability {
@@ -33,7 +33,7 @@ final class AICategoryClassifier {
     /// Classifies one expense. Returns nil on any failure so the caller keeps the
     /// embedding classifier's guess.
     func classify(merchant: String, snippet: String) async -> SpendCategory? {
-        guard #available(iOS 26.0, *),
+        guard #available(iOS 26.0, macOS 26.0, *),
               case .available = SystemLanguageModel.default.availability else { return nil }
         do {
             let session = LanguageModelSession(instructions: Self.instructions)
@@ -75,7 +75,7 @@ final class AICategoryClassifier {
 
 /// The categories Apple Intelligence may choose from (guided generation constrains the
 /// model's output to exactly one of these cases). Maps onto the app's `SpendCategory`.
-@available(iOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable
 enum AICategory {
     case foodAndDining

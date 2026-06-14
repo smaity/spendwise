@@ -9,9 +9,10 @@ struct TransactionParser {
 
     // MARK: Amount
 
-    /// Matches "Rs.1,234.56", "Rs 500", "INR 2,000.00", "₹350"
+    /// Matches "Rs.1,234.56", "Rs 500", "INR 2,000.00", "₹350", and "Rs:580.00" (Union Bank uses a
+    /// colon after the currency token).
     private static let amountRegex = try! NSRegularExpression(
-        pattern: #"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)"#,
+        pattern: #"(?:Rs\.?|INR|₹)[\s:]*([\d,]+(?:\.\d{1,2})?)"#,
         options: [.caseInsensitive]
     )
 
@@ -45,7 +46,62 @@ struct TransactionParser {
         ("hdfcbank", "HDFC"), ("icicibank", "ICICI"), ("sbi", "SBI"),
         ("axisbank", "Axis"), ("kotak", "Kotak"), ("idfcfirst", "IDFC First"),
         ("yesbank", "Yes Bank"), ("indusind", "IndusInd"), ("paytm", "Paytm"),
+        // SMS sender short-codes (e.g. VM-HDFCBK, AD-ICICIB, JD-SBIINB, BP-AXISBK).
+        ("hdfcbk", "HDFC"), ("icicib", "ICICI"), ("sbiinb", "SBI"), ("axisbk", "Axis"),
+        ("kotakb", "Kotak"), ("idfcfb", "IDFC First"), ("idfcbk", "IDFC First"),
     ]
+
+    /// Last-resort bank inference from the message body itself — needed for SMS, whose sender
+    /// is a short-code that may not match the list above. Harmless for email.
+    private static let bankBodyNeedles: [(needle: String, bank: String)] = [
+        ("hdfc", "HDFC"), ("icici", "ICICI"), ("state bank", "SBI"), ("axis", "Axis"),
+        ("kotak", "Kotak"), ("idfc", "IDFC First"), ("yes bank", "Yes Bank"),
+        ("indusind", "IndusInd"), ("paytm", "Paytm"), ("bank of baroda", "BoB"),
+        ("punjab national", "PNB"), ("canara", "Canara"), ("union bank", "Union Bank"),
+    ]
+
+    static func bankFromBody(_ lowercasedText: String) -> String? {
+        bankBodyNeedles.first { lowercasedText.contains($0.needle) }?.bank
+    }
+
+    // MARK: Non-transaction notices
+
+    /// Phrases that mark a message as a NOTICE about a future/pending/failed payment rather than a
+    /// completed money movement — bill reminders, scheduled auto-debits/e-mandates, declines.
+    /// These carry an amount + a debit word, so without this guard the keyword parser logs them as
+    /// real spends. The actual debit (e.g. "Sent Rs…", "successfully debited") arrives separately
+    /// and is kept. Apple Intelligence (`AISpendingValidator`) handles anything worded unusually.
+    private static let noticeMarkers = [
+        "is due", "due on", "due date", "payment due", "amount due", "minimum amount due",
+        "total amount due", "overdue", "bill alert", "new bill", "pay now",
+        "will be deducted", "will be debited", "would be deducted", "to be debited", "shall be debited",
+        "is scheduled", "scheduled on", "please ensure", "insufficient",
+        "declined", "reminder", "kindly pay", "please pay",
+        "payment request", "collect request", "requesting you", "has requested",
+        "e-mandate!", "e-statement", "statement is generated", "bill generated",
+    ]
+
+    static func isNonTransactionNotice(_ lowercasedText: String) -> Bool {
+        noticeMarkers.contains { lowercasedText.contains($0) }
+    }
+
+    // MARK: Reference number
+
+    /// Bank reference / UPI reference / UTR / RRN — a number that is IDENTICAL across an email and
+    /// SMS for the same payment, and different for distinct payments. Matches e.g. "Ref-616332746805",
+    /// "Ref 616282326248", "UPI transaction reference no.: 616...", "UTR: 1234567890".
+    private static let referenceRegex = try! NSRegularExpression(
+        pattern: #"(?:\bref(?:erence)?\b(?:\s*(?:no|number))?\.?|\bUTR\b|\bRRN\b)[\s:#/\-]*(\d{9,})"#,
+        options: [.caseInsensitive]
+    )
+
+    static func referenceNumber(in text: String) -> String? {
+        let range = NSRange(text.startIndex..., in: text)
+        guard let m = referenceRegex.firstMatch(in: text, range: range),
+              let r = Range(m.range(at: 1), in: text) else { return nil }
+        return String(text[r])
+    }
+
 
     // MARK: Category rules
 
@@ -59,7 +115,9 @@ struct TransactionParser {
         (["pharmacy", "apollo", "medplus", "1mg", "pharmeasy", "hospital", "clinic", "practo", "cult.fit"], .health),
         (["makemytrip", "goibibo", "cleartrip", "indigo", "air india", "vistara", "oyo", "airbnb", "yatra", "hotel"], .travel),
         (["udemy", "coursera", "byjus", "unacademy", "school", "college", "tuition"], .education),
-        (["zerodha", "groww", "upstox", "mutual fund", "sip", "nps", "ppf", "etmoney", "indmoney", "coin"], .investment),
+        (["zerodha", "groww", "upstox", "mutual fund", "sip", "nps", "ppf", "etmoney", "indmoney", "coin",
+          "securities", "raise securities", "raisesecurities", "indian clearing", "clearing corp", "iccl",
+          "moneylicious", "broking", "demat", "icicidirect", "angelbroking", "5paisa", "kuvera", "smallcase"], .investment),
         (["upi", "imps", "neft", "rtgs", "vpa"], .transfer),
     ]
 
@@ -75,16 +133,24 @@ struct TransactionParser {
     private static let dateRegex = try! NSRegularExpression(
         pattern: #"\b(\d{1,2}[-/]\w{2,3}[-/]\d{2,4}|\d{1,2}\w{3}\d{2}|\w{3}\s\d{1,2},\s\d{4})\b"#
     )
+    /// A clock time stated in the body, e.g. "12:40:01" or "20:39" — banks print the transaction
+    /// time right after the date (e.g. "on 14-06-2026 12:40:01"). Used to give the date a real
+    /// time-of-day instead of midnight.
+    private static let timeRegex = try! NSRegularExpression(
+        pattern: #"\b([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b"#
+    )
 
     // MARK: Public API
 
     /// Parse a single email into a transaction (debit = spend, salary/credit = income).
     /// Returns nil for non-transaction mail (OTP, promos, refunds, beneficiary-side credits).
-    static func parse(text: String, from sender: String, fallbackDate: Date) -> Transaction? {
+    static func parse(text: String, from sender: String, fallbackDate: Date, source: String = "gmail") -> Transaction? {
         let lower = text.lowercased()
 
         // Skip OTP / promo mail.
         if lower.contains("otp") || lower.contains("one time password") { return nil }
+        // Skip bill reminders, scheduled/future auto-debits, declines — not completed spends.
+        if isNonTransactionNotice(lower) { return nil }
         guard let amount = firstAmount(in: text), amount > 0 else { return nil }
 
         // Money sent to a beneficiary is OUTGOING even when worded "credited to the beneficiary".
@@ -92,25 +158,30 @@ struct TransactionParser {
         let hasDebit = isOutgoingTransfer || debitKeywords.contains(where: lower.contains)
         let isIncome = !isOutgoingTransfer && looksLikeIncome(lower)
 
-        let bank = bankSenders.first { sender.lowercased().contains($0.needle) }?.bank ?? "Bank"
+        // Sender match first (works for email + SMS short-codes); fall back to the body text.
+        let bank = bankSenders.first { sender.lowercased().contains($0.needle) }?.bank
+            ?? bankFromBody(lower) ?? "Bank"
         let date = extractDate(from: text) ?? fallbackDate
 
         if isIncome && !hasDebit {
-            let source = extractIncomeSource(from: text) ?? (lower.contains("salary") ? "Salary" : "Credit")
+            let incomeSource = extractIncomeSource(from: text) ?? (lower.contains("salary") ? "Salary" : "Credit")
             var tx = Transaction(
-                date: date, amount: amount, merchant: source,
-                category: .income, bank: bank, source: "gmail",
-                rawSnippet: String(text.prefix(200))
+                date: date, amount: amount, merchant: incomeSource,
+                category: .income, bank: bank, source: source,
+                rawSnippet: String(text.prefix(500))
             )
             tx.kind = .income
+            tx.referenceID = referenceNumber(in: text)
             return tx
         }
 
         guard hasDebit else { return nil }   // not a spend and not income → ignore
 
         var merchant = extractMerchant(from: text) ?? "Unknown"
-        // Transfers (NEFT/IMPS/RTGS/UPI): identify by payee so different recipients are
-        // distinct parties, not all lumped under one "IMPS transfer" group.
+        // Transfers (NEFT/IMPS/RTGS/UPI/standing-instruction): identify by payee so different
+        // recipients are distinct parties, not all lumped under one "IMPS transfer" group.
+        let isTransferLike = transferLabel(lower) != nil
+            || lower.contains("standing instruction") || lower.contains("net banking si")
         if merchant == "Unknown" || merchant.lowercased().contains("beneficiary") {
             let rail = transferLabel(lower)?.replacingOccurrences(of: " transfer", with: "")
             if let payee = transferPayee(from: text) {
@@ -119,13 +190,26 @@ struct TransactionParser {
                 merchant = transferLabel(lower) ?? merchant
             }
         }
-        let category = categorize(merchant: merchant, fullText: lower)
+        var category = categorize(merchant: merchant, fullText: lower)
+        // A bank transfer to a person (SI / NEFT / IMPS) with no other category match is a transfer,
+        // not "Other" or a mis-guessed spend category.
+        if isTransferLike && category == .other { category = .transfer }
         var tx = Transaction(
             date: date, amount: amount, merchant: merchant,
-            category: category, bank: bank, source: "gmail",
-            rawSnippet: String(text.prefix(200))
+            category: category, bank: bank, source: source,
+            rawSnippet: String(text.prefix(500))
         )
         tx.kind = .expense
+        tx.referenceID = referenceNumber(in: text)
+        // Capture the recipient account's last 4 digits for transfers — independent of the
+        // payee name, so account-tagged family members match even when a name is present.
+        if category == .transfer { tx.recipientAccountLast4 = recipientLast4(from: text) }
+        // A user-defined payee rule (recipient account → name + category) makes account-only
+        // transfers readable, e.g. "IMPS … To A/c …1234" → "Society Maintenance" / Utilities.
+        if let rule = RulesStore.shared.payeeRule(forAccountLast4: tx.recipientAccountLast4) {
+            tx.merchant = rule.payee
+            tx.category = rule.category
+        }
         return tx
     }
 
@@ -143,10 +227,45 @@ struct TransactionParser {
         pattern: #"(?:beneficiary|payee)(?:\s*name)?[:\s]+([A-Za-z][A-Za-z .]{2,39}?)(?:\s+(?:on|via|ref|a/c|account|acct)\b|[.,]|$)"#,
         options: [.caseInsensitive])
     // Anchored on the *credited* side so we capture the recipient's account, not the sender's.
-    // Matches "credited to the account ending xxxxxxxxxx1466", "transferred to a/c ...1466", etc.
+    // Matches "credited to the account ending xxxxxxxxxx1234", "transferred to a/c ...1234", etc.
+    // Captures the whole trailing digit run so we can take its LAST 4 (a fully-numeric account
+    // like "...211234" would otherwise yield its first 4 digits, not the real last 4).
     private static let payeeAccountRegex = try! NSRegularExpression(
-        pattern: #"(?:credited to|transferred to|sent to|paid to|to beneficiary)\b[^0-9]{0,40}?(\d{3,4})\b"#,
+        pattern: #"(?:credited to|transferred to|sent to|paid to|to beneficiary)\b[^0-9]{0,40}?(\d{4,})\b"#,
         options: [.caseInsensitive])
+    // Recipient account in a masked "Info:" field, e.g. "Info: XXXXXXXXXX1234" (HDFC SI alerts
+    // print the payee account this way, with no "credited to" wording).
+    private static let infoAccountRegex = try! NSRegularExpression(
+        pattern: #"\bInfo:\s*[X*x]{2,}(\d{4})\b"#)
+    // Recipient account in an IMPS/NEFT "To A/c xxxxxxxxxxx1234" line.
+    private static let toAccountRegex = try! NSRegularExpression(
+        pattern: #"\bTo\s+A/?c\.?\s*[X*x]*(\d{4})\b"#,
+        options: [.caseInsensitive])
+    // Payee name in a NEFT/IMPS/RTGS Info field: "NEFT Dr-<IFSC>-<NAME>-<purpose>-…".
+    private static let neftNameRegex = try! NSRegularExpression(
+        pattern: #"\b(?:NEFT|IMPS|RTGS)\s+(?:Dr|Cr)-[A-Z0-9]+-([A-Za-z][A-Za-z .]{2,30}?)-"#,
+        options: [.caseInsensitive])
+    // Standing-instruction payee: "NET BANKING SI -Alex". Reject all-caps values, which are
+    // transaction reference codes (e.g. "SI -NBIVFPJPR6JKWAYP") rather than names.
+    private static let siNameRegex = try! NSRegularExpression(
+        pattern: #"\bSI\s*-\s*([A-Za-z][A-Za-z]{1,18})\b"#)
+
+    /// The recipient account's last-4 digits stated in a transfer message, or nil. Exposed so the
+    /// store can match a row against a user's payee rule (and backfill the field on old rows).
+    static func recipientAccountLast4(in text: String) -> String? { recipientLast4(from: text) }
+
+    /// The destination account's last 4 digits, or nil. Used for deterministic family matching.
+    private static func recipientLast4(from text: String) -> String? {
+        let range = NSRange(text.startIndex..., in: text)
+        for regex in [payeeAccountRegex, infoAccountRegex, toAccountRegex] {
+            if let m = regex.firstMatch(in: text, range: range),
+               let r = Range(m.range(at: 1), in: text) {
+                let digits = text[r].filter(\.isNumber)
+                if digits.count >= 4 { return String(digits.suffix(4)) }
+            }
+        }
+        return nil
+    }
 
     private static func transferPayee(from text: String) -> String? {
         let range = NSRange(text.startIndex..., in: text)
@@ -155,9 +274,20 @@ struct TransactionParser {
             let name = cleanMerchant(String(text[r]))
             if name.count >= 3 { return name }
         }
-        if let m = payeeAccountRegex.firstMatch(in: text, range: range),
+        // NEFT/IMPS "Dr-<IFSC>-<NAME>-…" — the recipient's printed name.
+        if let m = neftNameRegex.firstMatch(in: text, range: range),
            let r = Range(m.range(at: 1), in: text) {
-            return "A/c ••\(text[r])"
+            let name = cleanMerchant(String(text[r]))
+            if name.count >= 3 { return name }
+        }
+        // Standing-instruction nickname "SI -Alex" (skip all-caps ref codes).
+        if let m = siNameRegex.firstMatch(in: text, range: range),
+           let r = Range(m.range(at: 1), in: text) {
+            let raw = String(text[r])
+            if raw.count >= 3, raw != raw.uppercased() { return cleanMerchant(raw) }
+        }
+        if let last4 = recipientLast4(from: text) {
+            return "A/c ••\(last4)"
         }
         return nil
     }
@@ -224,6 +354,10 @@ struct TransactionParser {
         return .other
     }
 
+    /// The transaction date+time stated in the message body, if any. Exposed so existing rows can
+    /// be re-dated from their stored snippet (timestamp backfill).
+    static func bodyDate(in text: String) -> Date? { extractDate(from: text) }
+
     private static func extractDate(from text: String) -> Date? {
         let range = NSRange(text.startIndex..., in: text)
         guard let m = dateRegex.firstMatch(in: text, range: range),
@@ -233,9 +367,28 @@ struct TransactionParser {
         f.locale = Locale(identifier: "en_IN")
         for fmt in dateFormats {
             f.dateFormat = fmt
-            if let d = f.date(from: candidate), d <= Date() { return d }
+            if let d = f.date(from: candidate), d <= Date() {
+                // Graft the clock time the bank stated (if any) onto the parsed day.
+                if let t = extractTimeOfDay(from: text),
+                   let withTime = Calendar.current.date(bySettingHour: t.h, minute: t.m, second: t.s, of: d),
+                   withTime <= Date() {
+                    return withTime
+                }
+                return d
+            }
         }
         return nil
+    }
+
+    /// First clock time stated in the body ("12:40:01" / "20:39"), or nil. Bank alerts carry the
+    /// transaction time and no other colon-separated time, so the first match is reliable.
+    private static func extractTimeOfDay(from text: String) -> (h: Int, m: Int, s: Int)? {
+        let range = NSRange(text.startIndex..., in: text)
+        guard let m = timeRegex.firstMatch(in: text, range: range),
+              let hr = Range(m.range(at: 1), in: text).flatMap({ Int(text[$0]) }),
+              let mn = Range(m.range(at: 2), in: text).flatMap({ Int(text[$0]) }) else { return nil }
+        let sc = Range(m.range(at: 3), in: text).flatMap { Int(text[$0]) } ?? 0
+        return (hr, mn, sc)
     }
 
     private static func cleanMerchant(_ raw: String) -> String {

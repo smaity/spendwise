@@ -15,13 +15,13 @@ struct SpendingInsight {
 /// (Foundation Models, iOS 26+). Returns nil when Apple Intelligence is unavailable, so the
 /// UI simply hides the AI section and keeps the rule-based insights.
 ///
-/// FoundationModels is weak-linked: every use is guarded by `#available(iOS 26.0, *)`.
+/// FoundationModels is weak-linked: every use is guarded by `#available(iOS 26.0, macOS 26.0, *)`.
 final class AIInsightsService {
 
     /// Whether the on-device model can run right now. Logs the reason when it can't.
     func isAvailable() -> Bool {
-        guard #available(iOS 26.0, *) else {
-            NSLog("SPENDWISE_AI: iOS < 26 — Apple Intelligence unavailable")
+        guard #available(iOS 26.0, macOS 26.0, *) else {
+            NSLog("SPENDWISE_AI: OS < 26 — Apple Intelligence unavailable")
             return false
         }
         switch SystemLanguageModel.default.availability {
@@ -37,7 +37,7 @@ final class AIInsightsService {
 
     /// Turns a compact spending summary into a friendly overview + 3 actionable tips.
     func generate(spendingSummary: String) async -> SpendingInsight? {
-        guard #available(iOS 26.0, *),
+        guard #available(iOS 26.0, macOS 26.0, *),
               case .available = SystemLanguageModel.default.availability else { return nil }
         do {
             let session = LanguageModelSession(instructions: Self.instructions)
@@ -62,7 +62,7 @@ final class AIInsightsService {
 }
 
 /// Guided-generation shape Apple Intelligence fills in. iOS 26+ only.
-@available(iOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable
 private struct AIGeneratedInsight {
     @Guide(description: "A warm 2-3 sentence overview of this month's spending, referencing real categories, merchants, and the month-over-month change.")
