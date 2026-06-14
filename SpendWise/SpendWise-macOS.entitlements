@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Default macOS entitlements. App Sandbox is intentionally OFF: reading the Messages chat.db for
+  SMS capture requires Full Disk Access, which is impossible inside the sandbox. The Mac app ships
+  via Developer ID (notarized), not the Mac App Store. Sandbox-off needs no special provisioning.
+  CloudKit sync is opt-in for M6 — see SpendWise-CloudKit-macOS.entitlements.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+</dict>
+</plist>

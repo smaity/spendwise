@@ -86,7 +86,7 @@ struct LockView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
+            Color.systemBackground.ignoresSafeArea()
             VStack(spacing: 18) {
                 BrandLogo(size: 76)
                     .shadow(color: Brand.accent.opacity(0.3), radius: 12, y: 6)
@@ -96,7 +96,7 @@ struct LockView: View {
                             .foregroundStyle(.white)
                             .padding(5)
                             .background(Brand.accent, in: Circle())
-                            .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 2))
+                            .overlay(Circle().strokeBorder(Color.systemBackground, lineWidth: 2))
                             .offset(x: 6, y: 6)
                     }
                 VStack(spacing: 4) {
