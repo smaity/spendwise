@@ -7,6 +7,8 @@ import Charts
 struct DashboardView: View {
     @EnvironmentObject var store: TransactionStore
     @State private var selectedMonth = Date()
+    @State private var selectedAngle: Double?
+    @State private var drilldownCategory: SpendCategory?
 
     private var summaries: [CategorySummary] { store.categorySummaries(inMonthOf: selectedMonth) }
     private var monthTotal: Double { store.total(inMonthOf: selectedMonth) }
@@ -24,6 +26,8 @@ struct DashboardView: View {
                     if store.memberEmails.count > 1 { memberChips }
                     monthPicker
                     totalCard
+                    if monthIncome > 0 || monthTotal > 0 { incomeVsSpendingCard }
+                    investmentsCard
                     if !store.visibleTransactions.isEmpty { yearTrend }
                     if store.memberEmails.count > 1 && store.memberFilter == nil {
                         familyBreakdown
@@ -45,6 +49,9 @@ struct DashboardView: View {
                 .padding()
             }
             .navigationTitle("SpendWise")
+            .navigationDestination(item: $drilldownCategory) { category in
+                CategoryTransactionsView(category: category, month: selectedMonth)
+            }
             .toolbar {
                 Button {
                     Task { await store.syncFromGmail() }
@@ -165,22 +172,86 @@ struct DashboardView: View {
                     .font(.caption).foregroundStyle(.orange)
             }
 
-            if monthIncome > 0 {
-                Divider().padding(.vertical, 4)
-                HStack {
-                    incomeNetItem("Income", value: monthIncome, color: .green)
-                    Spacer()
-                    let net = monthIncome - monthTotal
-                    incomeNetItem(net >= 0 ? "Saved" : "Overspent",
-                                  value: abs(net), color: net >= 0 ? .green : .red)
-                }
-                .padding(.horizontal, 24)
-            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
     }
+
+    /// Income vs Spending for the selected month — its own card so income is always visible
+    /// without distorting the spend-only category donut.
+    private var incomeVsSpendingCard: some View {
+        let net = monthIncome - monthTotal
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Income vs Spending").font(.headline)
+
+            Chart {
+                BarMark(x: .value("Amount", monthIncome), y: .value("Type", "Income"))
+                    .foregroundStyle(.green)
+                BarMark(x: .value("Amount", monthTotal), y: .value("Type", "Spending"))
+                    .foregroundStyle(Brand.accent)
+            }
+            .chartXAxis(.hidden)
+            .frame(height: 90)
+
+            HStack(alignment: .top) {
+                incomeNetItem("Income", value: monthIncome, color: .green)
+                Spacer()
+                incomeNetItem("Spending", value: monthTotal, color: Brand.accent)
+                Spacer()
+                incomeNetItem(net >= 0 ? "Saved" : "Overspent", value: abs(net),
+                              color: net >= 0 ? .green : .red)
+            }
+            .padding(.horizontal, 8)
+
+            if monthIncome == 0 {
+                Text("No income recorded this month yet.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Investments for the month (with all-time context) — savings put into brokerages/funds,
+    /// tracked apart from spending. Hidden when there are none.
+    @ViewBuilder private var investmentsCard: some View {
+        let inv = store.investments(inMonthOf: selectedMonth)
+        if inv.month > 0 || inv.allTime > 0 {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label("Investments", systemImage: "chart.line.uptrend.xyaxis").font(.headline)
+                    Spacer()
+                    Text("₹\(Int(inv.month).formatted()) this month")
+                        .font(.subheadline.bold()).foregroundStyle(.purple)
+                }
+                VStack(spacing: 0) {
+                    ForEach(inv.parties, id: \.name) { p in
+                        HStack(spacing: 10) {
+                            Image(systemName: "building.columns.fill")
+                                .font(.caption).frame(width: 24, height: 24)
+                                .background(Color.purple.opacity(0.15), in: Circle())
+                                .foregroundStyle(.purple)
+                            Text(p.name).font(.subheadline)
+                            Spacer()
+                            Text("₹\(Int(p.amount).formatted())").font(.subheadline.bold())
+                        }
+                        .padding(.vertical, 6)
+                        if p.name != inv.parties.last?.name { Divider() }
+                    }
+                }
+                Text("Total invested (all time): ₹\(Int(inv.allTime).formatted())")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    /// Transfers + investments for the month — money moved, not consumed, so it's shown apart
+    /// from spending. Hidden when there's none.
 
     private func incomeNetItem(_ label: String, value: Double, color: Color) -> some View {
         VStack(spacing: 2) {
@@ -192,7 +263,12 @@ struct DashboardView: View {
 
     private var categoryDonut: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("By category").font(.headline)
+            HStack {
+                Text("By category").font(.headline)
+                Spacer()
+                Label("Tap a slice", systemImage: "hand.tap.fill")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
             Chart(summaries) { s in
                 SectorMark(
                     angle: .value("Amount", s.total),
@@ -201,11 +277,47 @@ struct DashboardView: View {
                 )
                 .cornerRadius(4)
                 .foregroundStyle(by: .value("Category", s.category.rawValue))
+                .opacity(drilldownCategory == nil || drilldownCategory == s.category ? 1 : 0.4)
             }
+            .chartAngleSelection(value: $selectedAngle)
             .frame(height: 240)
+            .overlay {
+                if let total = summaries.first.map({ _ in summaries.reduce(0) { $0 + $1.total } }), total > 0 {
+                    VStack(spacing: 2) {
+                        Text("Total").font(.caption2).foregroundStyle(.secondary)
+                        Text("₹\(Int(total).formatted())")
+                            .font(.headline).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            // On macOS the angle selection tracks the mouse on HOVER, so navigating in onChange
+            // would drill in on any mouse-move. Instead hover only highlights; a click drills in.
+            #if os(macOS)
+            .contentShape(Rectangle())
+            .onTapGesture { drillDown(toAngle: selectedAngle) }
+            #else
+            .onChange(of: selectedAngle) { _, value in drillDown(toAngle: value) }
+            #endif
         }
         .padding()
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Drills into the category at the given angle-selection value (the slice under the cursor).
+    private func drillDown(toAngle value: Double?) {
+        guard let value, let category = category(atAngleValue: value) else { return }
+        drilldownCategory = category
+        selectedAngle = nil
+    }
+
+    /// Maps a donut angle-selection value (a position along the summed total) to its category.
+    private func category(atAngleValue value: Double) -> SpendCategory? {
+        var cumulative = 0.0
+        for s in summaries {
+            cumulative += s.total
+            if value <= cumulative { return s.category }
+        }
+        return summaries.last?.category
     }
 
     /// Last 12 months of spend, ending at the month being viewed, with an ML run-rate
