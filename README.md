@@ -109,40 +109,6 @@ Apple blocks SMS access on iOS, so this capture path is macOS-only; your iPhone 
 - **Built-in category rules**: edit `categoryRules` in `TransactionParser.swift` — these also seed the on-device classifier in `CategoryClassifier.swift`.
 - **Insight thresholds**: tune the rules in `InsightsEngine.swift`.
 
-## Project layout
-
-```
-SpendWise/
-├── SpendWiseApp.swift              App entry, scene phases, background refresh
-├── Brand.swift                     Product identity (name, tagline, colors)
-├── Models/
-│   ├── Transaction.swift           Transaction, category, statement model
-│   ├── FamilyMember.swift          Family member + user profile
-│   └── SpendingStory.swift         Spending Story model
-├── Stores/
-│   ├── TransactionStore.swift      State, SQLite persistence, analytics, sync, sample data
-│   └── RulesStore.swift            User-editable senders, category, and named-account rules
-├── Services/
-│   ├── GmailService.swift          OAuth (PKCE) + Gmail API fetch
-│   ├── SMSTransactionSource.swift  macOS: reads bank SMS from Messages chat.db
-│   ├── TransactionParser.swift     Parsing of Indian bank alert emails / SMS
-│   ├── TransactionDatabase.swift   SQLite store
-│   ├── AppFiles.swift              App-private storage location
-│   ├── LocalSyncService.swift      Local Wi-Fi peer sync (MultipeerConnectivity)
-│   ├── CloudSyncEngine.swift       Optional CloudKit sync + field-merge resolver
-│   ├── CategoryClassifier.swift    On-device embedding classifier (fallback)
-│   ├── AICategoryClassifier.swift  Apple Intelligence categorizer (primary)
-│   ├── AIInsightsService.swift     Apple Intelligence insights summary
-│   ├── AIQueryService.swift        Apple Intelligence spending Q&A
-│   ├── AIFamilyTransferService.swift / AIDuplicateDetector.swift / AISpendingValidator.swift
-│   ├── InsightsEngine.swift        Savings + investment suggestion rules
-│   ├── Story*.swift                Spending Story narration, recording, export
-│   └── AppLock.swift               Optional Face ID / Touch ID app lock
-└── Views/                          MainNavigation (tabs / macOS sidebar), Dashboard,
-                                    Transactions, BalanceSheet (NetWorthView), Insights,
-                                    Repeats, Settings, RulesView, AskAI, Spending Story
-```
-
 ## Disclaimer
 
 Investment suggestions are rule-based educational pointers, not financial advice. Consult a SEBI-registered investment advisor for personalised guidance.
