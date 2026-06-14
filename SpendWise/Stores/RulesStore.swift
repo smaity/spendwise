@@ -11,6 +11,16 @@ struct CategoryRule: Codable, Identifiable, Hashable {
     var category: SpendCategory
 }
 
+/// Maps a recipient account's last-4 digits to a named payee + category, so transfers that the
+/// bank reports only by account number (e.g. "IMPS … To A/c xxxxxxxxxxx1234") show a readable
+/// name and the right category instead of a generic "IMPS transfer".
+struct PayeeRule: Codable, Identifiable, Hashable {
+    var id = UUID()
+    var accountLast4: String
+    var payee: String
+    var category: SpendCategory
+}
+
 /// User-editable transaction-detection rules, layered on top of the built-in ones.
 /// A singleton so the (static) parser and Gmail query can read it; the UI edits it.
 final class RulesStore: ObservableObject {
@@ -18,12 +28,12 @@ final class RulesStore: ObservableObject {
 
     @Published var customSenders: [String] = [] { didSet { if loaded { save() } } }
     @Published var customCategoryRules: [CategoryRule] = [] { didSet { if loaded { save() } } }
+    @Published var payeeAccountRules: [PayeeRule] = [] { didSet { if loaded { save() } } }
 
     private var loaded = false
-    private let fileURL: URL = {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return dir.appendingPathComponent("detection_rules.json")
-    }()
+    // App-private storage (Application Support), not the user's Documents folder. On non-sandboxed
+    // macOS, `.documentDirectory` is the real ~/Documents — app data must not live there.
+    private let fileURL = AppFiles.url("detection_rules.json")
 
     private init() {
         load()
@@ -52,15 +62,39 @@ final class RulesStore: ObservableObject {
 
     func removeCategoryRules(at offsets: IndexSet) { customCategoryRules.remove(atOffsets: offsets) }
 
+    // MARK: Payee (recipient-account) rules
+
+    /// The payee rule for a recipient account's last-4, if any. Used by the parser.
+    func payeeRule(forAccountLast4 last4: String?) -> PayeeRule? {
+        guard let last4, !last4.isEmpty else { return nil }
+        return payeeAccountRules.first { $0.accountLast4 == last4 }
+    }
+
+    func setPayeeRule(accountLast4 raw: String, payee: String, category: SpendCategory) {
+        let last4 = String(raw.filter(\.isNumber).suffix(4))
+        let name = payee.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard last4.count == 4, !name.isEmpty else { return }
+        if let i = payeeAccountRules.firstIndex(where: { $0.accountLast4 == last4 }) {
+            payeeAccountRules[i].payee = name
+            payeeAccountRules[i].category = category
+        } else {
+            payeeAccountRules.append(PayeeRule(accountLast4: last4, payee: name, category: category))
+        }
+    }
+
+    func removePayeeRules(at offsets: IndexSet) { payeeAccountRules.remove(atOffsets: offsets) }
+
     // MARK: Persistence
 
     private struct Persisted: Codable {
         var customSenders: [String]
         var customCategoryRules: [CategoryRule]
+        var payeeAccountRules: [PayeeRule]?   // optional for backward compatibility
     }
 
     private func save() {
-        let p = Persisted(customSenders: customSenders, customCategoryRules: customCategoryRules)
+        let p = Persisted(customSenders: customSenders, customCategoryRules: customCategoryRules,
+                          payeeAccountRules: payeeAccountRules)
         if let data = try? JSONEncoder().encode(p) { try? data.write(to: fileURL, options: .atomic) }
     }
 
@@ -69,5 +103,6 @@ final class RulesStore: ObservableObject {
               let p = try? JSONDecoder().decode(Persisted.self, from: data) else { return }
         customSenders = p.customSenders
         customCategoryRules = p.customCategoryRules
+        payeeAccountRules = p.payeeAccountRules ?? []
     }
 }

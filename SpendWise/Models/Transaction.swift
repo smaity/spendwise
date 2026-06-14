@@ -57,8 +57,35 @@ struct Transaction: Identifiable, Codable, Hashable {
     var account: String?        // Gmail address this came from (family member)
     var sourceID: String?       // stable provider id (Gmail message id); nil for manual/sample
     var kind: TransactionKind?  // nil == expense (back-compat with old saved data)
+    var toFamily: Bool?         // set by the family-transfer detector; nil == not yet checked
+    var familyMember: String?   // which family member this transfer matched, when toFamily == true
+    var recipientAccountLast4: String?  // destination account's last 4 digits, for deterministic family matching
+    var isSelfTransfer: Bool?   // true == a move between the user's own accounts (still counted as spend, just tagged)
+    var modifiedAt: Date?       // last local mutation; tie-breaks CloudKit field-merge conflicts (nil == legacy/oldest)
+    var altSourceID: String?    // secondary provider id when the SAME txn arrived via two channels (e.g. gmail + sms)
+    var referenceID: String?    // bank reference / UPI ref / UTR — identical across channels for one payment, so the reliable dedup key
 
     var isIncome: Bool { kind == .income }
+
+    /// All stable provider ids this row carries (primary + cross-channel secondary).
+    var sourceIDs: [String] { [sourceID, altSourceID].compactMap { $0 } }
+
+    /// A person-to-person money transfer (vs. a merchant purchase).
+    var isTransfer: Bool { category == .transfer }
+
+    /// A move between the user's OWN accounts — counted as neither income nor spending (it nets
+    /// to zero). Set by `detectSelfTransfers`.
+    var isSelf: Bool { isSelfTransfer == true }
+
+    /// Money put into a brokerage/fund (still counted as spending, and shown on its own card too).
+    var isInvestment: Bool { !isIncome && !isSelf && category == .investment }
+
+    /// Spending — the basis for spending analytics. All money that left your hands: consumption,
+    /// transfers to people, AND investments. Excludes only income and self-transfers (moves
+    /// between your OWN accounts, which net to zero).
+    var isConsumption: Bool {
+        !isIncome && !isSelf
+    }
 
     var amountFormatted: String {
         let f = NumberFormatter()
@@ -70,6 +97,24 @@ struct Transaction: Identifiable, Codable, Hashable {
     }
 }
 
+/// A line on the income & expenditure statement (an income source or a spending category).
+struct StatementLine: Identifiable {
+    var id: String { name }
+    let name: String
+    let amount: Double
+    let icon: String
+}
+
+/// A simple income & expenditure statement (receipts and payments), for a period.
+struct FinancialStatement {
+    let period: ClosedRange<Date>?
+    let income: Double
+    let incomeLines: [StatementLine]
+    let expenditure: Double
+    let expenditureLines: [StatementLine]
+    var net: Double { income - expenditure }   // surplus (+) or deficit (−)
+}
+
 struct CategorySummary: Identifiable {
     var id: String { category.rawValue }
     let category: SpendCategory
@@ -77,3 +122,4 @@ struct CategorySummary: Identifiable {
     let count: Int
     let percentOfSpend: Double
 }
+

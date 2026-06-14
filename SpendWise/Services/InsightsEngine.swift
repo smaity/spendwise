@@ -151,10 +151,25 @@ enum InsightsEngine {
         )]
     }
 
-    /// Same merchant + same amount in consecutive months → subscription.
+    /// A merchant with no real name — a rail label or "Unknown". Such rows can't be a subscription.
+    private static func isGenericMerchant(_ merchant: String) -> Bool {
+        let m = merchant.lowercased().trimmingCharacters(in: .whitespaces)
+        if m.isEmpty || m == "unknown" { return true }
+        if m.hasSuffix("transfer") || m.hasPrefix("a/c") || m.contains("· a/c") { return true }
+        return m.filter(\.isLetter).count < 3
+    }
+
+    /// Same merchant + same amount in consecutive months → subscription. Only real merchant
+    /// charges count — transfers, investments, and self-moves are excluded (a recurring ₹50k
+    /// mandate or monthly family transfer is not a "subscription").
     private static func subscriptions(_ all: [Transaction]) -> [Insight] {
         let cal = Calendar.current
-        let byKey = Dictionary(grouping: all) { "\($0.merchant.lowercased())|\($0.amount)" }
+        let candidates = all.filter {
+            $0.category != .transfer && $0.category != .investment && $0.isSelfTransfer != true
+            && $0.amount <= 10_000              // a subscription is a small recurring charge, not a bill/EMI/payment
+            && !isGenericMerchant($0.merchant)  // and to a NAMED merchant, not "Unknown"/"UPI transfer"
+        }
+        let byKey = Dictionary(grouping: candidates) { "\($0.merchant.lowercased())|\($0.amount)" }
         let recurring = byKey.values.filter { txs in
             let months = Set(txs.map { cal.dateComponents([.year, .month], from: $0.date) })
             return months.count >= 2
@@ -264,16 +279,19 @@ extension InsightsEngine {
             let months = Set(txs.map { cal.dateComponents([.year, .month], from: $0.date) })
             // Round to paise to compare amounts safely.
             let distinctAmounts = Set(txs.map { ($0.amount * 100).rounded() })
+            let category = mostCommon(txs.map(\.category)) ?? sorted[0].category
             return RepeatedSpend(
                 merchant: mostCommon(txs.map(\.merchant)) ?? sorted[0].merchant,
-                category: mostCommon(txs.map(\.category)) ?? sorted[0].category,
+                category: category,
                 count: txs.count,
                 total: txs.reduce(0) { $0 + $1.amount },
                 banks: Array(Set(txs.map(\.bank))).sorted(),
                 firstSeen: sorted.first!.date,
                 lastSeen: sorted.last!.date,
                 activeMonths: months.count,
+                // A fixed recurring MERCHANT charge — not a recurring transfer or investment.
                 isSubscription: distinctAmounts.count == 1 && months.count >= 2
+                    && category != .transfer && category != .investment
             )
         }
 
