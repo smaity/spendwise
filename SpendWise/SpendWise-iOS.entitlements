@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Default iOS entitlements: intentionally empty. The app needs no special entitlements for its
+  core features (Gmail uses read-only OAuth + Keychain). CloudKit sync is opt-in for M6 — see
+  SpendWise-CloudKit-iOS.entitlements and docs/macos-build-and-sync-setup.md.
+-->
+<plist version="1.0">
+<dict/>
+</plist>

@@ -6,6 +6,13 @@
 	<string>SpendWise</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>SpendWise uses Face ID to lock your financial data so only you can open the app.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>SpendWise syncs your transactions directly between your own iPhone and Mac over your local Wi-Fi. Nothing is sent to any server.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_spendwise-sync._tcp</string>
+		<string>_spendwise-sync._udp</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
