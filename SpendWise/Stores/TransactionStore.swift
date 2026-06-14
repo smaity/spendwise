@@ -78,6 +78,11 @@ final class TransactionStore: ObservableObject {
     init() {
         AppFiles.migrateLegacyStorageIfNeeded()   // move data out of ~/Documents (older builds)
         load()
+        #if DEBUG
+        // Screenshot/marketing mode: seed rich, fully-tagged demo data and skip the normal
+        // empty-start + sync pipeline. Gated on a launch env var; compiled out of Release builds.
+        if ProcessInfo.processInfo.environment["DEMO_DATA"] != nil { seedDemoData(); return }
+        #endif
         backfillReferenceIDs()   // populate reference numbers on rows imported before ref tracking
         collapseDuplicates()     // collapse duplicates (by reference number, then by content)
         if let data = UserDefaults.standard.data(forKey: Self.partyTagsKey),
@@ -598,6 +603,19 @@ final class TransactionStore: ObservableObject {
         }
         if changed { save() }
     }
+
+    #if DEBUG
+    /// Loads the screenshot/marketing demo dataset (see `SampleData.demoTransactions`). Sets a
+    /// matching family + named-account rule so every screen and badge is populated. Never runs in
+    /// production — gated by the DEMO_DATA launch env var and compiled out of Release builds.
+    func seedDemoData() {
+        familyMembers = SampleData.familyMembers
+        userProfile = UserProfile(name: "Alex Kumar", aliases: "", accounts: "5832")
+        RulesStore.shared.setPayeeRule(accountLast4: "1234", payee: "Green Acres Maintenance",
+                                       category: .utilities)
+        transactions = SampleData.demoTransactions.sorted { $0.date > $1.date }
+    }
+    #endif
 
     /// Recovers a time-of-day for SMS rows still sitting at midnight, by re-reading the transaction
     /// time the bank stated in the stored message body. Rows whose body has no time stay as-is.
@@ -1403,4 +1421,60 @@ enum SampleData {
         FamilyMember(name: "Rohan Verma", relationship: "Brother", aliases: "Rohan"),
         FamilyMember(name: "Anita Verma", relationship: "Spouse", aliases: ""),
     ]
+
+    /// Rich, fully-tagged demo dataset for screenshots/marketing: income + spending across
+    /// categories, investments, family transfers, a named-account bill, and a mix of capture
+    /// channels (SMS with real times, email, manual) so every card and badge has something to show.
+    static var demoTransactions: [Transaction] {
+        let cal = Calendar.current
+        func at(_ daysAgo: Int, _ hour: Int = 0, _ minute: Int = 0) -> Date {
+            let day = cal.date(byAdding: .day, value: -daysAgo, to: Date())!
+            return cal.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
+        }
+        var out: [Transaction] = []
+        func add(_ daysAgo: Int, _ amount: Double, _ merchant: String, _ category: SpendCategory,
+                 _ bank: String, source: String, hour: Int = 0, minute: Int = 0,
+                 income: Bool = false, family: String? = nil, acct4: String? = nil) {
+            var t = Transaction(date: at(daysAgo, hour, minute), amount: amount, merchant: merchant,
+                                category: category, bank: bank, source: source, rawSnippet: nil)
+            t.kind = income ? .income : .expense
+            t.recipientAccountLast4 = acct4
+            if let family { t.toFamily = true; t.familyMember = family }
+            out.append(t)
+        }
+        // Income (drives the income-vs-spending card and the statement)
+        add(4,  125000, "Acme Corp Payroll", .income, "HDFC", source: "gmail", income: true)
+        add(34, 125000, "Acme Corp Payroll", .income, "HDFC", source: "gmail", income: true)
+        // Everyday spending — SMS rows carry a time of day, email rows don't.
+        add(0,  420,  "Swiggy",            .food,          "HDFC", source: "sms",   hour: 13, minute: 12)
+        add(1,  1250, "Big Bazaar",        .groceries,     "HDFC", source: "sms",   hour: 19, minute: 40)
+        add(1,  199,  "Spotify",           .entertainment, "ICICI", source: "gmail")
+        add(2,  310,  "Uber",              .transport,     "HDFC", source: "sms",   hour: 9,  minute: 5)
+        add(3,  2899, "Amazon",            .shopping,      "ICICI", source: "gmail")
+        add(4,  650,  "Zomato",            .food,          "HDFC", source: "sms",   hour: 21, minute: 18)
+        add(5,  999,  "Airtel Recharge",   .utilities,     "SBI",  source: "sms",   hour: 11, minute: 2)
+        add(6,  540,  "Blinkit",           .groceries,     "HDFC", source: "sms",   hour: 20, minute: 33)
+        add(8,  180,  "Rapido",            .transport,     "ICICI", source: "sms",  hour: 8,  minute: 51)
+        add(9,  3500, "Myntra",            .shopping,      "HDFC", source: "gmail")
+        add(11, 649,  "Netflix",           .entertainment, "ICICI", source: "gmail")
+        add(11, 850,  "Apollo Pharmacy",   .health,        "SBI",  source: "sms",   hour: 17, minute: 9)
+        add(14, 2100, "BESCOM Electricity", .utilities,    "HDFC", source: "gmail")
+        add(18, 1299, "BookMyShow",        .entertainment, "ICICI", source: "manual")
+        add(19, 1500, "Indian Oil Petrol", .transport,     "SBI",  source: "sms",   hour: 7,  minute: 44)
+        add(22, 1100, "Dominos",           .food,          "ICICI", source: "sms",  hour: 20, minute: 15)
+        add(26, 899,  "Flipkart",          .shopping,      "HDFC", source: "gmail")
+        add(28, 3200, "MakeMyTrip",        .travel,        "HDFC", source: "gmail")
+        // Investments (drives the investments card)
+        add(7,  5000, "Groww SIP",         .investment,    "ICICI", source: "gmail")
+        add(15, 15000, "Zerodha Stocks",   .investment,    "HDFC", source: "sms",   hour: 10, minute: 1)
+        add(37, 5000, "Groww SIP",         .investment,    "ICICI", source: "gmail")
+        // Family transfers (tagged → "To family" badge; counted as spending)
+        add(2,  8000,  "Priya Sharma", .transfer, "HDFC",  source: "sms", hour: 9,  minute: 30, family: "Priya Sharma", acct4: "2048")
+        add(9,  3000,  "Rohan",        .transfer, "ICICI", source: "sms", hour: 18, minute: 40, family: "Rohan Verma",  acct4: "7781")
+        add(20, 20000, "Anita Verma",  .transfer, "HDFC",  source: "sms", hour: 11, minute: 0,  family: "Anita Verma",  acct4: "1190")
+        // A named-account bill (society maintenance) and a non-family transfer
+        add(10, 18500, "Green Acres Maintenance", .utilities, "HDFC", source: "sms", hour: 8, minute: 30, acct4: "1234")
+        add(16, 1200,  "UPI transfer", .transfer, "HDFC", source: "sms", hour: 10, minute: 12)
+        return out
+    }
 }
