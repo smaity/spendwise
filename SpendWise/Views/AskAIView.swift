@@ -9,7 +9,11 @@ struct AskAIView: View {
     @EnvironmentObject var store: TransactionStore
     @Environment(\.dismiss) private var dismiss
 
-    private let service = AIQueryService()
+    // Owned by the view so SwiftUI keeps the SAME instance — and its single
+    // LanguageModelSession — alive across re-renders. A plain `let` would be
+    // discarded whenever the view struct is recreated, dropping the conversation
+    // context and forcing every follow-up to start from scratch.
+    @State private var service = AIQueryService()
 
     @State private var messages: [ChatMessage] = []
     @State private var input: String = ""

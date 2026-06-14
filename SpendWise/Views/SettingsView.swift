@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var newLabel = ""
     @State private var historyMonths = 12
     @State private var confirmResync = false
+    @State private var confirmSMSResync = false
 
     var body: some View {
         NavigationStack {
@@ -94,10 +95,76 @@ struct SettingsView: View {
                     }
                 }
 
-                if let err = connectError ?? store.syncError {
+                #if os(macOS)
+                Section {
+                    if store.syncError == TransactionStore.fullDiskAccessSentinel {
+                        GrantFullDiskAccessView { Task { await store.syncFromSMS() } }
+                    } else {
+                        if store.isSyncing {
+                            HStack(spacing: 8) { ProgressView(); Text("Reading Messages…").font(.caption).foregroundStyle(.secondary) }
+                        } else {
+                            Button("Sync bank SMS from Messages") {
+                                Task { await store.syncFromSMS() }
+                            }
+                            Button(role: .destructive) {
+                                confirmSMSResync = true
+                            } label: {
+                                Label("Clear & re-sync all SMS", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                        }
+                        if let status = store.smsStatus {
+                            Text(status).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Messages (SMS)")
+                } footer: {
+                    Text("Reads bank transaction SMS forwarded to this Mac from your iPhone (Text Message Forwarding). Captures UPI and small-value payments that don't arrive by email. Read on-device only.")
+                }
+                #endif
+
+                if let err = connectError ?? store.syncError,
+                   err != TransactionStore.fullDiskAccessSentinel {
                     Section {
                         Text(err).font(.caption).foregroundStyle(.red)
                     }
+                }
+
+                Section {
+                    if let name = store.nearbyDeviceName {
+                        Label("Synced with \(name)", systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(.green)
+                    } else {
+                        Label("Looking for your other device on Wi-Fi…", systemImage: "wifi")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Button("Sync with nearby devices now") { store.restartLocalSync() }
+                } header: {
+                    Text("Nearby sync")
+                } footer: {
+                    Text("Your iPhone and Mac sync transactions directly over the same Wi-Fi network — no account or server. Keep both apps open on the same network. (Requires the Local Network permission.)")
+                }
+
+                Section {
+                    Button("Find duplicates with Apple Intelligence") {
+                        Task { await store.collapseDuplicatesWithAI() }
+                    }
+                    .disabled(store.isSyncing)
+                    if let status = store.dedupStatus {
+                        Text(status).font(.caption).foregroundStyle(.secondary)
+                    }
+
+                    Button("Remove non-transactions with Apple Intelligence") {
+                        Task { await store.removeNonTransactionsWithAI() }
+                    }
+                    .disabled(store.isSyncing)
+                    if let status = store.validationStatus {
+                        Text(status).font(.caption).foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Clean up with Apple Intelligence")
+                } footer: {
+                    Text("Duplicates (same payment reported by email and SMS) are merged. Non-transactions — bill reminders, scheduled/upcoming auto-debits, payment requests, and declined attempts — are detected and removed, while genuine debits are kept. Exact duplicates and obvious reminders are already filtered automatically on every sync.")
                 }
 
                 Section {
@@ -127,7 +194,7 @@ struct SettingsView: View {
                         Label("Detection rules", systemImage: "slider.horizontal.3")
                     }
                 } footer: {
-                    Text("Review the built-in rules and add your own bank senders and category keywords.")
+                    Text("Configure bank senders, category keywords, and named accounts (e.g. society maintenance).")
                 }
 
                 Section {
@@ -139,6 +206,51 @@ struct SettingsView: View {
                     Text("Security")
                 } footer: {
                     Text("Lock SpendWise behind \(appLock.biometryLabel) each time it opens or returns from the background.")
+                }
+
+                Section {
+                    NavigationLink {
+                        ProfileEditorView(profile: store.userProfile)
+                    } label: {
+                        LabeledContent("Your details",
+                                       value: store.userProfile.name.isEmpty ? "Not set" : store.userProfile.name)
+                    }
+                } header: {
+                    Label("You", systemImage: "person.crop.circle")
+                } footer: {
+                    Text("Your name helps Apple Intelligence personalize insights and tell your own accounts apart from family.")
+                }
+
+                Section {
+                    ForEach(store.familyMembers) { member in
+                        NavigationLink {
+                            FamilyMemberEditorView(member: member, isNew: false)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(member.name).font(.subheadline.bold())
+                                let detail = [member.relationship.isEmpty ? nil : member.relationship,
+                                              member.accountLast4Digits.map { "•• \($0)" }]
+                                    .compactMap { $0 }.joined(separator: " · ")
+                                if !detail.isEmpty {
+                                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) { store.removeFamilyMember(member) } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
+                    }
+                    NavigationLink {
+                        FamilyMemberEditorView(member: FamilyMember(name: ""), isNew: true)
+                    } label: {
+                        Label("Add family member", systemImage: "plus")
+                    }
+                } header: {
+                    Label("Family", systemImage: "person.2.fill")
+                } footer: {
+                    Text("SpendWise flags transfers you send to these people and totals them in Insights. An account's last 4 digits give an exact match; Apple Intelligence additionally matches by name, nickname, and UPI handle. Runs on-device.")
                 }
 
                 Section("About") {
@@ -158,6 +270,7 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle("Settings")
             .alert("Rename account", isPresented: Binding(
                 get: { renamingAccount != nil },
@@ -183,6 +296,17 @@ struct SettingsView: View {
             } message: {
                 Text("Tags and manually-added transactions are kept.")
             }
+            #if os(macOS)
+            .confirmationDialog("Clear all SMS-imported transactions and re-read them from Messages?",
+                                isPresented: $confirmSMSResync, titleVisibility: .visible) {
+                Button("Clear & re-sync SMS", role: .destructive) {
+                    Task { await store.clearAndResyncSMS() }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Gmail rows, tags, and manual transactions are kept.")
+            }
+            #endif
         }
     }
 }

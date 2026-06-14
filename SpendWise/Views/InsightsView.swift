@@ -33,7 +33,10 @@ struct InsightsView: View {
                     }
                     if potentialMonthlySaving > 0 { headline }
 
+                    SpendingStoryCard()
+
                     aiSection
+                    familyTransfersCard
 
                     if !savings.isEmpty {
                         section("Cut spending", items: savings)
@@ -61,6 +64,7 @@ struct InsightsView: View {
             }
             .navigationTitle("Insights")
             .task(id: store.memberFilter) { await loadAIInsight() }
+            .task { await store.detectFamilyTransfers() }
             .sheet(isPresented: $showAsk) {
                 AskAIView().environmentObject(store)
             }
@@ -87,6 +91,37 @@ struct InsightsView: View {
             }
         case .idle, .hidden:
             EmptyView()
+        }
+    }
+
+    /// Money sent to family this month, detected by Apple Intelligence. Hidden when none.
+    @ViewBuilder private var familyTransfersCard: some View {
+        let fam = store.familyTransfers()
+        if !fam.isEmpty {
+            let total = fam.reduce(0) { $0 + $1.amount }
+            let byMember = Dictionary(grouping: fam, by: { $0.familyMember ?? "Family" })
+                .map { (name: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
+                .sorted { $0.total > $1.total }
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Sent to family this month", systemImage: "person.2.fill")
+                    .font(.caption.bold()).foregroundStyle(.pink)
+                Text("₹\(Int(total).formatted())")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                ForEach(byMember, id: \.name) { m in
+                    HStack {
+                        Text(m.name)
+                        Spacer()
+                        Text("₹\(Int(m.total).formatted())").bold()
+                    }
+                    .font(.caption).foregroundStyle(.secondary)
+                }
+                Label("Detected with Apple Intelligence", systemImage: "sparkles")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(.pink.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
         }
     }
 
