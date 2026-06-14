@@ -67,10 +67,19 @@ struct MainNavigation: View {
         .frame(minWidth: 760, minHeight: 520)
     }
     #else
+    // Honour a SCREENSHOT_TAB launch env var so each screen can be captured deterministically;
+    // defaults to the dashboard for normal launches.
+    @State private var selection: Tab = {
+        if let raw = ProcessInfo.processInfo.environment["SCREENSHOT_TAB"],
+           let tab = Tab(rawValue: raw) { return tab }
+        return .dashboard
+    }()
+
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
             ForEach(Tab.allCases) { tab in
                 tab.destination
+                    .tag(tab)
                     .tabItem { Label(tab.title, systemImage: tab.icon) }
             }
         }
