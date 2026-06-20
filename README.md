@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/spendwise-demo.gif" width="300" alt="SpendWise screens cycling through Dashboard, Transactions, Balance Sheet, Insights, Repeats, and Settings">
+  <img src="screenshots/spendwise-demo.gif?v=2" width="300" alt="SpendWise screens cycling through Dashboard, Transactions, Balance Sheet, Insights, Repeats, and Settings">
 </p>
 
 ---
@@ -37,14 +37,14 @@ and no paid iCloud required. A payment seen on both channels is de-duplicated so
 
 <table>
   <tr>
-    <td align="center"><img src="screenshots/01-dashboard.png" width="220" alt="Dashboard"><br><sub><b>Dashboard</b> — monthly total, income vs spending, investments</sub></td>
-    <td align="center"><img src="screenshots/02-transactions.png" width="220" alt="Transactions"><br><sub><b>Transactions</b> — searchable list with source badges</sub></td>
-    <td align="center"><img src="screenshots/03-insights.png" width="220" alt="Insights"><br><sub><b>Insights</b> — savings, spending story, family transfers</sub></td>
+    <td align="center"><img src="screenshots/01-dashboard.png?v=2" width="220" alt="Dashboard"><br><sub><b>Dashboard</b> — monthly total, income vs spending, investments</sub></td>
+    <td align="center"><img src="screenshots/02-transactions.png?v=2" width="220" alt="Transactions"><br><sub><b>Transactions</b> — searchable list with source badges</sub></td>
+    <td align="center"><img src="screenshots/03-insights.png?v=2" width="220" alt="Insights"><br><sub><b>Insights</b> — savings, spending story, family transfers</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="screenshots/04-repeats.png" width="220" alt="Repeats"><br><sub><b>Repeats</b> — recurring payments &amp; subscriptions</sub></td>
-    <td align="center"><img src="screenshots/05-settings.png" width="220" alt="Settings"><br><sub><b>Settings</b> — data sources, family, rules, app lock</sub></td>
-    <td align="center"><img src="screenshots/06-balancesheet.png" width="220" alt="Balance Sheet"><br><sub><b>Balance Sheet</b> — income &amp; expenditure by month/year</sub></td>
+    <td align="center"><img src="screenshots/04-repeats.png?v=2" width="220" alt="Repeats"><br><sub><b>Repeats</b> — recurring payments &amp; subscriptions</sub></td>
+    <td align="center"><img src="screenshots/05-settings.png?v=2" width="220" alt="Settings"><br><sub><b>Settings</b> — data sources, family, rules, app lock</sub></td>
+    <td align="center"><img src="screenshots/06-balancesheet.png?v=2" width="220" alt="Balance Sheet"><br><sub><b>Balance Sheet</b> — income &amp; expenditure by month/year</sub></td>
   </tr>
 </table>
 
