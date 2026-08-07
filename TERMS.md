@@ -1,12 +1,12 @@
 # Terms of Service — SpendWise
 
-**Last updated: 8 June 2026**
+**Last updated: 7 August 2026**
 
-These terms govern your use of the SpendWise iOS app ("the app"). By installing or using the app, you agree to them. If you do not agree, please do not use the app.
+These terms govern your use of the SpendWise app for iPhone and Mac ("the app"). By installing or using the app, you agree to them. If you do not agree, please do not use the app.
 
 ## 1. What SpendWise is
 
-SpendWise is a personal-finance utility that reads bank transaction-alert emails from your Gmail (with your permission, read-only) and presents spending dashboards, insights, and educational saving/investment pointers. It is a personal tool, provided free of charge and primarily for your own and your family's use.
+SpendWise is a personal-finance utility that reads bank transaction-alert emails from your Gmail (with your permission, read-only) — and, on Mac, bank transaction-alert SMS that your iPhone forwards to the Messages app (with the Full Disk Access permission you grant) — and presents spending dashboards, insights, and educational saving/investment pointers. It is a personal tool, provided free of charge and primarily for your own and your family's use.
 
 ## 2. Not financial advice
 
@@ -14,13 +14,14 @@ SpendWise is a personal-finance utility that reads bank transaction-alert emails
 
 ## 3. Accuracy of data
 
-SpendWise parses bank-alert emails using pattern matching. Parsing may be incomplete or incorrect — emails may be missed, amounts or categories may be wrong, and not all of your spending is necessarily captured. **You are responsible for verifying any figure before relying on it.** Treat the app's numbers as indicative, not authoritative; your bank's own statements are the source of truth.
+SpendWise parses bank-alert emails and SMS using pattern matching. Parsing may be incomplete or incorrect — emails may be missed, amounts or categories may be wrong, and not all of your spending is necessarily captured. **You are responsible for verifying any figure before relying on it.** Treat the app's numbers as indicative, not authoritative; your bank's own statements are the source of truth.
 
 ## 4. Your responsibilities
 
 - Use the app only with Google accounts you own or are authorized to access. When adding a family member's account, do so only with that person's consent.
 - Comply with Google's terms when connecting your Gmail account.
-- Keep your device secured; because all data is stored on-device, the security of that data depends on your device's passcode and protections.
+- Enable Mac SMS capture (Text Message Forwarding plus Full Disk Access) only for message streams you own; the permission is yours to grant and revoke in System Settings.
+- Keep your devices secured; because all data is stored on-device, the security of that data depends on your devices' passcodes and protections.
 
 ## 5. Third-party services
 
@@ -36,7 +37,7 @@ To the maximum extent permitted by law, the developer shall not be liable for an
 
 ## 8. Privacy
 
-Your use of the app is also governed by the [Privacy Policy](./PRIVACY.md), which describes how the app handles your data (in short: everything stays on your device).
+Your use of the app is also governed by the [Privacy Policy](./PRIVACY.md), which describes how the app handles your data (in short: everything stays on your own devices).
 
 ## 9. Changes
 
@@ -48,4 +49,4 @@ These terms are governed by the laws of India, without regard to conflict-of-law
 
 ## Contact
 
-Questions about these terms? Contact the developer at **your-email@example.com**.
+Questions about these terms? Contact the developer at **mr.sajal@gmail.com**.
